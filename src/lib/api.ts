@@ -16,6 +16,17 @@ export function getAccessToken(): string | null {
   return accessToken;
 }
 
+let onAuthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: (() => void) | null): void {
+  onAuthorized = handler;
+}
+
+export async function ensureSession(): Promise<boolean> {
+  if (accessToken) return true;
+  return tryRefresh()
+} 
+
 export interface ApiError {
   code: string;
   message: string;
@@ -47,10 +58,16 @@ async function request<T>(
     credentials: 'include',
   });
 
-  if (res.status === 401 && retry) {
+  if (res.status === 401 && !path.startsWith('/auth/')) {
     // Attempt a silent refresh once, then replay the request.
-    const refreshed = await tryRefresh();
-    if (refreshed) return request<T>(path, { ...options, retry: false });
+    if (retry) {
+      const refreshed = await tryRefresh();
+      if (refreshed) {
+        return request<T>(path, { ...options, retry: false });
+      }
+    }
+    accessToken = null;
+    onAuthorized?.();
   }
 
   if (!res.ok) {
