@@ -28,16 +28,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
 
-COPY --from=build /app/.next ./.next
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/public ./public
+RUN useradd --create-home --shell /usr/sbin/nologin appuser
 
-RUN useradd --create-home --shell /usr/sbin/nologin appuser \
-    && chown -R appuser:appuser /app
+COPY --from=build --chown=appuser:appuser /app/public ./public
+COPY --from=build --chown=appuser:appuser /app/.next/standalone ./
+COPY --from=build --chown=appuser:appuser /app/.next/static ./.next/static
 
 USER appuser
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
