@@ -10,6 +10,7 @@ export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/sites', label: 'Sites' },
   { href: '/analytics', label: 'Analytics' },
   { href: '/sections', label: 'Section performance' },
+  { href: '/heatmap', label: 'Heatmap' },
   { href: '/insights', label: 'AI insights' },
   { href: '/experiments', label: 'Experiments' },
   { href: '/approvals', label: 'Experiment review' },

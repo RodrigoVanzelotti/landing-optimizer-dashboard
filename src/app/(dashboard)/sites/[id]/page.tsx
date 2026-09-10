@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
+import { GoalsManager } from '@/components/goals-manager';
 
 interface SnippetResponse {
   siteId: string;
@@ -94,6 +95,10 @@ export default function SiteInstallPage(): React.ReactElement {
       ) : (
         <p className="text-sm text-muted-foreground">Loading…</p>
       )}
+
+      <div className="mt-4">
+        <GoalsManager siteId={params.id} />
+      </div>
     </div>
   );
 }
