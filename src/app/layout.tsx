@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import type { Metadata } from 'next';
+import { ClientErrorReporter } from '@/components/client-error-reporter';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -14,7 +15,10 @@ export default function RootLayout({
 }): React.ReactElement {
   return (
     <html lang="en">
-      <body className="min-h-screen antialiased">{children}</body>
+      <body className="min-h-screen antialiased">
+        <ClientErrorReporter />
+        {children}
+      </body>
     </html>
   );
 }

@@ -8,9 +8,11 @@ import {
   type SnapshotDetail,
   type SnapshotMeta,
 } from '@/lib/api';
-import { useSites } from '@/lib/use-sites';
-import { Card } from '@/components/ui/card';
+import { useSite } from '@/lib/site-context';
+import { milestone, useJourney } from '@/lib/journey';
+import { Card, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { PageHeader } from '@/components/page-header';
 import {
   formatMs,
@@ -24,8 +26,8 @@ const selectClass =
   'h-9 rounded-md border border-border bg-background px-3 text-sm';
 
 export default function HeatmapPage(): React.ReactElement {
-  const { sites, loading: sitesLoading } = useSites();
-  const [siteId, setSiteId] = useState<string>('');
+  const { sites, siteId, loading: sitesLoading } = useSite();
+  const { journey } = useJourney(siteId);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [snapshotId, setSnapshotId] = useState<string>('');
   const [snapshot, setSnapshot] = useState<SnapshotDetail | null>(null);
@@ -38,11 +40,6 @@ export default function HeatmapPage(): React.ReactElement {
     frustration: true,
     scroll: true,
   });
-
-  // Default to the first site once loaded.
-  useEffect(() => {
-    if (!siteId && sites.length > 0) setSiteId(sites[0]?.id ?? '');
-  }, [sites, siteId]);
 
   // Load the site's snapshots; default to the newest.
   useEffect(() => {
@@ -108,18 +105,6 @@ export default function HeatmapPage(): React.ReactElement {
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
-        <select
-          className={selectClass}
-          value={siteId}
-          onChange={(e) => setSiteId(e.target.value)}
-          aria-label="Site"
-        >
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
         {snapshots.length > 0 ? (
           <select
             className={selectClass}
@@ -155,6 +140,9 @@ export default function HeatmapPage(): React.ReactElement {
         <CaptureInstructions domain={site?.primaryDomain} />
       ) : snapshot && heatmap ? (
         <div className="space-y-4">
+          <WarmingBanner
+            ready={milestone(journey, 'heatmap_ready')}
+          />
           <HeatmapLegend layers={layers} />
           <HeatmapOverlay
             snapshot={snapshot}
@@ -173,6 +161,31 @@ export default function HeatmapPage(): React.ReactElement {
         <p className="text-sm text-muted-foreground">Loading snapshot…</p>
       )}
     </div>
+  );
+}
+
+/** Anticipation banner while the heatmap is still statistically thin. */
+function WarmingBanner({
+  ready,
+}: {
+  ready: { done: boolean; current?: number; target?: number } | undefined;
+}): React.ReactElement | null {
+  if (!ready || ready.done) return null;
+  return (
+    <Card className="py-4">
+      <div className="flex items-center justify-between gap-6">
+        <div>
+          <CardTitle>Heatmap warming up</CardTitle>
+          <p className="mt-1 text-xs text-muted-foreground">
+            You can already explore, but patterns become trustworthy around{' '}
+            {ready.target ?? 200} interactions. Just leave the snippet running.
+          </p>
+        </div>
+        <div className="w-56 shrink-0">
+          <Progress value={ready.current ?? 0} max={ready.target ?? 200} unit="interactions" />
+        </div>
+      </div>
+    </Card>
   );
 }
 

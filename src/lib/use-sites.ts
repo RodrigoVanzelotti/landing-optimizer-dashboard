@@ -1,35 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { api, type Site } from '@/lib/api';
+import { useSite } from './site-context';
+import type { Site } from './api';
 
-/** Loads the tenant's sites once and exposes selection state. */
+/**
+ * Back-compat wrapper over the shared SiteProvider. Pages that only need the
+ * list keep working; pages that need the SELECTED site should use `useSite()`
+ * from site-context instead.
+ */
 export function useSites(): {
   sites: Site[];
   loading: boolean;
   error: string | null;
 } {
-  const [sites, setSites] = useState<Site[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    api
-      .get<Site[]>('/sites')
-      .then((data) => {
-        if (active) setSites(data);
-      })
-      .catch((e: Error) => {
-        if (active) setError(e.message);
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, []);
-
+  const { sites, loading, error } = useSite();
   return { sites, loading, error };
 }

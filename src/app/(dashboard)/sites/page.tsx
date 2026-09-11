@@ -4,13 +4,13 @@ import type * as React from 'react';
 import { useState } from 'react';
 import Link from 'next/link';
 import { api, type Site } from '@/lib/api';
-import { useSites } from '@/lib/use-sites';
+import { useSite } from '@/lib/site-context';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 
 export default function SitesPage(): React.ReactElement {
-  const { sites, loading, error } = useSites();
+  const { sites, loading, error, refresh } = useSite();
   const [list, setList] = useState<Site[] | null>(null);
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
@@ -28,6 +28,8 @@ export default function SitesPage(): React.ReactElement {
       setList([site, ...rows]);
       setName('');
       setDomain('');
+      // Keep the global site selector in sync with the new site.
+      void refresh();
     } catch (err) {
       setFormError((err as Error).message);
     } finally {

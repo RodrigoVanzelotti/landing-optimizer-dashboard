@@ -4,6 +4,8 @@
  * renew it. Never stores tokens in localStorage.
  */
 
+import { reportClientError } from './client-log';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/v1';
 
 let accessToken: string | null = null;
@@ -56,11 +58,23 @@ async function request<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers,
-    credentials: 'include',
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      credentials: 'include',
+    });
+  } catch (err) {
+    // Network-level failure: the API never saw it, so the relay log is the
+    // only trace of the incident.
+    reportClientError('api_unreachable', {
+      path,
+      reason: err instanceof Error ? `${err.name}:${err.message}`.slice(0, 300) : 'unknown',
+      source: 'api-client',
+    });
+    throw err;
+  }
 
   if (res.status === 401 && !path.startsWith('/auth/')) {
     // Attempt a silent refresh once, then replay the request.
@@ -76,6 +90,17 @@ async function request<T>(
 
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as { error?: ApiError } | null;
+    if (res.status >= 500) {
+      // 5xx: the API already logged its own request_failed record; this adds
+      // the browser-side view under the SAME request id for correlation.
+      reportClientError('api_request_failed', {
+        path,
+        status: res.status,
+        reason: body?.error?.code ?? 'unknown',
+        request_id: res.headers.get('X-Request-ID') ?? undefined,
+        source: 'api-client',
+      });
+    }
     throw new ApiRequestError(
       res.status,
       body?.error ?? { code: 'unknown', message: res.statusText },
@@ -240,4 +265,35 @@ export interface HeatmapResult {
   pageViews: number;
   elements: HeatmapElement[];
   scrollDepth: { bucket: number; reached: number; pct: number }[];
+}
+
+/* ------------------------------ journey types ----------------------------- */
+
+export type MilestoneId =
+  | 'site_created'
+  | 'snippet_installed'
+  | 'traffic'
+  | 'goal_defined'
+  | 'conversion_tracked'
+  | 'snapshot_captured'
+  | 'heatmap_ready'
+  | 'ai_ready'
+  | 'experiment_created'
+  | 'experiment_live'
+  | 'results_ready';
+
+export interface JourneyMilestone {
+  id: MilestoneId;
+  done: boolean;
+  current?: number;
+  target?: number;
+}
+
+export interface Journey {
+  siteId: string;
+  firstEventAt: string | null;
+  lastEventAt: string | null;
+  completed: number;
+  total: number;
+  milestones: JourneyMilestone[];
 }

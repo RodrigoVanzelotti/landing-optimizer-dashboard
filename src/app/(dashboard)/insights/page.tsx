@@ -3,9 +3,11 @@
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useSites } from '@/lib/use-sites';
+import { useSite } from '@/lib/site-context';
+import { milestone, useJourney, MILESTONE_COPY } from '@/lib/journey';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { LockedFeature } from '@/components/locked-feature';
 import { PageHeader } from '@/components/page-header';
 
 interface Suggestion {
@@ -18,8 +20,8 @@ interface Suggestion {
 }
 
 export default function InsightsPage(): React.ReactElement {
-  const { sites } = useSites();
-  const siteId = sites[0]?.id;
+  const { siteId } = useSite();
+  const { journey } = useJourney(siteId);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -60,6 +62,33 @@ export default function InsightsPage(): React.ReactElement {
     }
   }
 
+  // Progressive unlock: the AI needs real traffic before its suggestions are
+  // worth the operator's attention. Existing suggestions always stay visible.
+  const aiReady = milestone(journey, 'ai_ready');
+  const locked = aiReady ? !aiReady.done && suggestions.length === 0 : false;
+
+  if (locked && aiReady) {
+    return (
+      <div>
+        <PageHeader
+          title="AI insights"
+          description="AI proposes CRO experiments. It never publishes — everything requires approval."
+        />
+        <LockedFeature
+          title="AI insights unlock at 500 page views"
+          description={MILESTONE_COPY.ai_ready.description}
+          progress={{
+            current: aiReady.current ?? 0,
+            target: aiReady.target ?? 500,
+            unit: 'page views',
+          }}
+          cta={{ href: `/sites/${siteId}`, label: 'Check my install' }}
+          footnote="Keep the snippet running — this unlocks by itself. The page structure map your snippet sends is what the AI reads."
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -74,7 +103,14 @@ export default function InsightsPage(): React.ReactElement {
       {msg ? <p className="mb-4 text-sm text-muted-foreground">{msg}</p> : null}
 
       {suggestions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No suggestions yet. Run an analysis.</p>
+        <Card className="mx-auto max-w-xl py-8 text-center">
+          <CardTitle>Ready to analyze</CardTitle>
+          <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+            You have enough traffic. Run an analysis and the AI will score your page and
+            propose copy and CTA experiments — each one lands here for your review, never
+            auto-published.
+          </p>
+        </Card>
       ) : (
         <div className="grid gap-3">
           {suggestions.map((s) => (

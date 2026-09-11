@@ -3,7 +3,7 @@
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import { api, type GuardrailRules, type GuardrailView } from '@/lib/api';
-import { useSites } from '@/lib/use-sites';
+import { useSite } from '@/lib/site-context';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
@@ -14,18 +14,12 @@ const inputClass =
 type SaveState = { kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string };
 
 export default function GuardrailsPage(): React.ReactElement {
-  const { sites, loading } = useSites();
-  const [siteId, setSiteId] = useState('');
+  const { sites, siteId, loading } = useSite();
   const [tone, setTone] = useState('');
   const [bannedWords, setBannedWords] = useState('');
   const [maxLength, setMaxLength] = useState('');
   const [mustKeepClaims, setMustKeepClaims] = useState('');
   const [state, setState] = useState<SaveState>({ kind: 'idle' });
-
-  useEffect(() => {
-    const first = sites[0];
-    if (!siteId && first) setSiteId(first.id);
-  }, [sites, siteId]);
 
   useEffect(() => {
     if (!siteId) return;
@@ -99,21 +93,6 @@ export default function GuardrailsPage(): React.ReactElement {
           </Button>
         }
       />
-
-      <div className="mb-4 flex items-center gap-2">
-        <label className="text-sm text-muted-foreground">Site</label>
-        <select
-          className="h-9 rounded-md border border-border bg-transparent px-3 text-sm"
-          value={siteId}
-          onChange={(e) => setSiteId(e.target.value)}
-        >
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
 
       {state.kind === 'error' ? (
         <p className="mb-4 text-sm text-red-600">{state.message}</p>

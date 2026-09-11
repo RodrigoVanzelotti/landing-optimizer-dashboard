@@ -3,8 +3,9 @@
 import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
-import { useSites } from '@/lib/use-sites';
+import { useSite } from '@/lib/site-context';
 import { Card } from '@/components/ui/card';
+import { LockedFeature } from '@/components/locked-feature';
 import { PageHeader } from '@/components/page-header';
 import { formatNumber } from '@/lib/utils';
 
@@ -17,8 +18,7 @@ interface SectionRow {
 }
 
 export default function SectionsPage(): React.ReactElement {
-  const { sites } = useSites();
-  const siteId = sites[0]?.id;
+  const { siteId } = useSite();
   const [rows, setRows] = useState<SectionRow[]>([]);
 
   useEffect(() => {
@@ -36,7 +36,11 @@ export default function SectionsPage(): React.ReactElement {
         description="Heat-style view of visibility, dwell, and frustration signals per section."
       />
       {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No section data yet.</p>
+        <LockedFeature
+          title="Section performance is warming up"
+          description="As visitors scroll, each page section (hero, pricing, FAQ…) is scored on views, dwell time, and frustration clicks — so you learn which section loses people before they convert."
+          footnote="Fills automatically once the snippet is installed and visitors scroll your page."
+        />
       ) : (
         <Card className="overflow-x-auto">
           <table className="w-full text-sm">
