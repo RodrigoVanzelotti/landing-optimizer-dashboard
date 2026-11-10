@@ -4,7 +4,7 @@
  * renew it. Never stores tokens in localStorage.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/v1';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 let accessToken: string | null = null;
 

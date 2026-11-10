@@ -26,11 +26,6 @@ dist/
 build/
 *.tsbuildinfo
 
-test/
-**/*.spec.ts
-**/*.test.ts
-**/*.test.tsx
-vitest.config.ts
 .eslintrc.cjs
 .eslintrc.json
 coverage/

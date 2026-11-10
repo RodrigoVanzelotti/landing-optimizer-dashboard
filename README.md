@@ -13,7 +13,13 @@ cp .env.example .env.local
 npm install
 npm run dev        # http://localhost:3000
 ```
-Requires the API running at `NEXT_PUBLIC_API_URL` (default http://localhost:3001/v1).
+The browser uses the same-origin `/api` proxy by default. Its backend is `API_URL`
+(default `http://localhost:3001/v1`); production Docker builds set it with
+`--build-arg API_URL=https://YOUR_API/v1`. Next.js freezes rewrites at build time.
+`NEXT_PUBLIC_API_URL` can override the browser URL for other integrations.
+
+For the Google Cloud deployment, see
+[the deployment guide](../landing-optimizer-infra/gcp-v1/README.md).
 
 ### Docker watch mode
 From the sibling `landing-optimizer-infra` repo (Docker Compose 2.23+):

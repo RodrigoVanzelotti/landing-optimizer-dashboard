@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, setAccessToken } from '../src/lib/api';
+import { api, ensureSession, getAccessToken, setAccessToken } from '../src/lib/api';
 
 afterEach(() => {
   setAccessToken(null);
@@ -7,6 +7,15 @@ afterEach(() => {
 });
 
 describe('api request bodies', () => {
+  it('uses the dashboard origin and sends its refresh cookie', async () => {
+    const fetchMock = mockFetch({ accessToken: 'renewed-access-token' });
+    expect(await ensureSession()).toBe(true);
+    expect(fetchMock).toHaveBeenCalledWith('/api/auth/refresh', {
+      method: 'POST', credentials: 'include',
+    });
+    expect(getAccessToken()).toBe('renewed-access-token');
+  });
+
   it('does not send JSON content type for a bodyless POST', async () => {
     const fetchMock = mockFetch({ count: 1, score: 75 });
 
