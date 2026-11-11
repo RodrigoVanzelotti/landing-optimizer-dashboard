@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiRequestError, type ConversionGoal, type GoalKind } from '@/lib/api';
 import { Card, CardTitle } from '@/components/ui/card';
@@ -13,6 +15,7 @@ const inputClass =
 
 /** Per-site conversion goal management (create, list, delete). */
 export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const [goals, setGoals] = useState<ConversionGoal[]>([]);
   const [name, setName] = useState('');
   const [kind, setKind] = useState<GoalKind>('event');
@@ -103,16 +106,16 @@ export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement
                   <span className="text-muted-foreground">· {g.kind}</span>
                   {summary ? <span className="text-muted-foreground"> · {summary}</span> : null}
                 </div>
-                <Button size="sm" variant="destructive" onClick={() => remove(g.id)}>
+                {editable && <Button size="sm" variant="destructive" onClick={() => remove(g.id)}>
                   Delete
-                </Button>
+                </Button>}
               </div>
             );
           })
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-4">
+      {editable && <div className="mt-4 flex flex-wrap items-end gap-2 border-t border-border pt-4">
         <div className="flex flex-col">
           <label className="mb-1 text-xs text-muted-foreground">Name</label>
           <input
@@ -178,7 +181,7 @@ export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement
         <Button onClick={create} disabled={busy}>
           {busy ? 'Adding…' : 'Add goal'}
         </Button>
-      </div>
+      </div>}
     </Card>
   );
 }

@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useState } from 'react';
 import Link from 'next/link';
 import { api, type Site } from '@/lib/api';
@@ -10,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 
 export default function SitesPage(): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const { sites, loading, error } = useSites();
   const [list, setList] = useState<Site[] | null>(null);
   const [name, setName] = useState('');
@@ -39,7 +42,7 @@ export default function SitesPage(): React.ReactElement {
     <div>
       <PageHeader title="Sites" description="Each site gets a unique, signed install snippet." />
 
-      <Card className="mb-6">
+      {editable && <Card className="mb-6">
         <form onSubmit={createSite} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col">
             <label className="mb-1 text-xs text-muted-foreground">Name</label>
@@ -66,7 +69,7 @@ export default function SitesPage(): React.ReactElement {
           </Button>
         </form>
         {formError ? <p className="mt-2 text-sm text-red-600">{formError}</p> : null}
-      </Card>
+      </Card>}
 
       {error ? (
         <p className="text-sm text-red-600">{error}</p>

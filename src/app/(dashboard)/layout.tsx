@@ -9,9 +9,9 @@ export default function DashboardLayout({
 }): React.ReactElement {
   return (
     <AuthGuard>
-      <div className="flex min-h-screen">
+      <div className="flex min-h-screen flex-col md:flex-row">
         <Sidebar />
-        <main className="flex-1 overflow-auto p-8">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto p-5 sm:p-8">{children}</main>
       </div>
     </AuthGuard>
   );

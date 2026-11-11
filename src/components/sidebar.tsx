@@ -4,6 +4,8 @@ import type * as React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useSession } from '@/lib/session';
+import { canViewRoute, roleLabels } from '@/lib/permissions';
 
 export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/overview', label: 'Overview' },
@@ -20,24 +22,27 @@ export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/team', label: 'Team members' },
   { href: '/settings', label: 'Settings' },
   { href: '/billing', label: 'Billing' },
+  { href: '/tenants', label: 'Clientes' },
 ];
 
 export function Sidebar(): React.ReactElement {
   const pathname = usePathname();
+  const user = useSession();
   return (
-    <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-muted/30 p-4">
+    <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/30 p-4 md:w-60 md:border-b-0 md:border-r">
       <div className="mb-6 px-2 text-lg font-semibold">
         Landing<span className="text-primary">Optimizer</span>
       </div>
-      <nav className="flex flex-col gap-0.5">
-        {NAV_ITEMS.map((item) => {
+      <p className="mb-4 px-2 text-xs text-muted-foreground">{roleLabels[user.role]}</p>
+      <nav className="flex flex-row gap-0.5 overflow-x-auto md:flex-col">
+        {NAV_ITEMS.filter((item) => canViewRoute(user.role, item.href, user.platformOwner)).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                'rounded-md px-3 py-2 text-sm transition-colors',
+                'shrink-0 rounded-md px-3 py-2 text-sm transition-colors',
                 active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
               )}
             >

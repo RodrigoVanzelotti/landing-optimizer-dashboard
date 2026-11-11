@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useSites } from '@/lib/use-sites';
@@ -18,6 +20,7 @@ interface Suggestion {
 }
 
 export default function InsightsPage(): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const { sites } = useSites();
   const siteId = sites[0]?.id;
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -65,10 +68,10 @@ export default function InsightsPage(): React.ReactElement {
       <PageHeader
         title="AI insights"
         description="AI proposes CRO experiments. It never publishes — everything requires approval."
-        action={
+        action={editable ?
           <Button onClick={analyze} disabled={busy || !siteId}>
             {busy ? 'Analyzing…' : 'Run analysis'}
-          </Button>
+          </Button> : undefined
         }
       />
       {msg ? <p className="mb-4 text-sm text-muted-foreground">{msg}</p> : null}
@@ -93,7 +96,7 @@ export default function InsightsPage(): React.ReactElement {
                   <Badge tone={s.riskLevel === 'high' ? 'red' : s.riskLevel === 'medium' ? 'amber' : 'green'}>
                     {s.riskLevel} risk
                   </Badge>
-                  {s.payload.selector && s.payload.proposedValue && !s.experimentId ? (
+                  {editable && s.payload.selector && s.payload.proposedValue && !s.experimentId ? (
                     <Button size="sm" variant="outline" onClick={() => materialize(s.id)}>
                       Create experiment
                     </Button>

@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -17,6 +19,7 @@ interface SnippetResponse {
 }
 
 export default function SiteInstallPage(): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const params = useParams<{ id: string }>();
   const [snippet, setSnippet] = useState<SnippetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -56,10 +59,10 @@ export default function SiteInstallPage(): React.ReactElement {
       <PageHeader
         title="Script installation"
         description="Paste this snippet before </head>. It loads asynchronously and fails silently."
-        action={
+        action={editable ?
           <Button onClick={publish} variant="outline" disabled={publishing}>
             {publishing ? 'Publishing…' : 'Publish config'}
-          </Button>
+          </Button> : undefined
         }
       />
 

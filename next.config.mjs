@@ -19,6 +19,14 @@ const nextConfig = {
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
         ],
       },
+      {
+        source: '/:path(invite|reset-password)',
+        headers: [
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow' },
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
     ];
   },
 };

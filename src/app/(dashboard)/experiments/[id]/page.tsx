@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
@@ -57,6 +59,7 @@ const ACTIONS: Record<string, { label: string; action: string; variant?: 'destru
 };
 
 export default function ExperimentReviewPage(): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const params = useParams<{ id: string }>();
   const [exp, setExp] = useState<ExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -93,7 +96,7 @@ export default function ExperimentReviewPage(): React.ReactElement {
   if (error && !exp) return <p className="text-sm text-red-600">{error}</p>;
   if (!exp) return <p className="text-sm text-muted-foreground">Loading…</p>;
 
-  const actions = ACTIONS[exp.status] ?? [];
+  const actions = editable ? ACTIONS[exp.status] ?? [] : [];
 
   return (
     <div>

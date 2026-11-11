@@ -1,6 +1,8 @@
 'use client';
 
 import type * as React from 'react';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
 import { useEffect, useState } from 'react';
 import { api, type GuardrailRules, type GuardrailView } from '@/lib/api';
 import { useSites } from '@/lib/use-sites';
@@ -14,6 +16,7 @@ const inputClass =
 type SaveState = { kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string };
 
 export default function GuardrailsPage(): React.ReactElement {
+  const editable = canEdit(useSession().role);
   const { sites, loading } = useSites();
   const [siteId, setSiteId] = useState('');
   const [tone, setTone] = useState('');
@@ -93,10 +96,10 @@ export default function GuardrailsPage(): React.ReactElement {
       <PageHeader
         title="Brand guardrails"
         description="Constrain AI-generated copy. Banned words and max length are enforced before suggestions are stored; tone and must-keep claims steer generation."
-        action={
+        action={editable ?
           <Button onClick={save} disabled={!siteId || state.kind === 'saving'}>
             {state.kind === 'saving' ? 'Saving…' : 'Save guardrails'}
-          </Button>
+          </Button> : undefined
         }
       />
 
@@ -128,6 +131,7 @@ export default function GuardrailsPage(): React.ReactElement {
           <input
             className={`${inputClass} mt-2`}
             placeholder="e.g. confident, concise, friendly"
+            readOnly={!editable}
             value={tone}
             onChange={(e) => setTone(e.target.value)}
             maxLength={500}
@@ -143,6 +147,7 @@ export default function GuardrailsPage(): React.ReactElement {
           <textarea
             className={`${inputClass} mt-2 h-28 resize-y`}
             placeholder={'cheap\nguaranteed\nfree'}
+            readOnly={!editable}
             value={bannedWords}
             onChange={(e) => setBannedWords(e.target.value)}
           />
@@ -157,6 +162,7 @@ export default function GuardrailsPage(): React.ReactElement {
             className={`${inputClass} mt-2`}
             inputMode="numeric"
             placeholder="e.g. 80"
+            readOnly={!editable}
             value={maxLength}
             onChange={(e) => setMaxLength(e.target.value)}
           />
@@ -170,6 +176,7 @@ export default function GuardrailsPage(): React.ReactElement {
           <textarea
             className={`${inputClass} mt-2 h-24 resize-y`}
             placeholder={'SOC 2 Type II certified\n30-day money-back guarantee'}
+            readOnly={!editable}
             value={mustKeepClaims}
             onChange={(e) => setMustKeepClaims(e.target.value)}
           />
