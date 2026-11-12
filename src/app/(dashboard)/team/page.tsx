@@ -22,6 +22,7 @@ export default function TeamPage(): React.ReactElement {
   const [link, setLink] = useState('');
   const [copied, setCopied] = useState(false);
   const [role, setRole] = useState<UserRole>('viewer');
+  const [removingId, setRemovingId] = useState<string | null>(null);
   const load = useCallback(async () => { setTeam(await api.get<Team>('/team')); }, []);
   useEffect(() => { void load().catch((err: Error) => setError(err.message)); }, [load]);
   const admins = team?.members.filter((member) => member.role === 'admin').length ?? 0;
@@ -56,6 +57,13 @@ export default function TeamPage(): React.ReactElement {
       await api.patch(`/team/members/${member.id}/role`, { role: nextRole });
       if (member.user.id === user.id) window.location.reload();
     }, 'Perfil atualizado.');
+  }
+
+  async function removeMember(member: Member): Promise<void> {
+    await mutate(async () => {
+      await api.del(`/team/members/${member.id}`);
+      setRemovingId(null);
+    }, 'Pessoa removida da equipe. O acesso a este cliente foi encerrado.');
   }
 
   return (
@@ -94,11 +102,20 @@ export default function TeamPage(): React.ReactElement {
         <section aria-labelledby="members-title">
           <h2 id="members-title" className="text-xl font-semibold">Pessoas no workspace</h2>
           <ul className="mt-4 divide-y divide-border border-y border-border">
-            {team.members.map((member) => <li key={member.id} className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+            {team.members.map((member) => <li key={member.id} className="py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0"><p className="break-words font-medium">{member.user.name ?? member.user.email}{member.user.id === user.id && <span className="ml-2 text-xs text-muted-foreground">Você</span>}</p><p className="mt-1 break-all text-sm text-muted-foreground">{member.user.email}</p></div>
-              {admin ? <select aria-label={`Perfil de ${member.user.name ?? member.user.email}`} value={member.role} disabled={busy} className={`${inputClass} sm:w-44`} onChange={(event) => { void changeRole(member, event.target.value); }}>
+              {admin ? <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center"><select aria-label={`Perfil de ${member.user.name ?? member.user.email}`} value={member.role} disabled={busy} className={`${inputClass} sm:w-44`} onChange={(event) => { void changeRole(member, event.target.value); }}>
                 <option value="viewer" disabled={member.role === 'admin' && admins <= 1}>Visualizador</option><option value="editor" disabled={member.role === 'admin' && admins <= 1}>Editor</option><option value="admin" disabled={member.role !== 'admin' && adminsFull}>Administrador</option>
-              </select> : <span className="text-sm">{roleLabels[member.role]}</span>}
+              </select>
+                {member.user.id !== user.id && !(member.role === 'admin' && admins <= 1) && <Button variant="outline" className="h-11" disabled={busy} aria-label={`Remover ${member.user.name ?? member.user.email} da equipe`} aria-expanded={removingId === member.id} aria-controls={`remove-${member.id}`} onClick={() => { setRemovingId(member.id); setError(null); }}>Remover</Button>}
+              </div> : <span className="text-sm">{roleLabels[member.role]}</span>}
+              </div>
+              {admin && removingId === member.id && <section id={`remove-${member.id}`} aria-labelledby={`remove-title-${member.id}`} className="mt-4 rounded-md border border-border p-4">
+                <h3 id={`remove-title-${member.id}`} className="break-words font-semibold">Remover {member.user.name ?? member.user.email} da equipe?</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">A pessoa perderá o acesso a este cliente. A conta e o histórico serão preservados. Convites pendentes enviados por ela serão revogados.</p>
+                <div className="mt-4 flex flex-wrap gap-3"><Button variant="outline" className="h-11" disabled={busy} onClick={() => setRemovingId(null)}>Cancelar</Button><Button variant="destructive" className="h-11" disabled={busy} onClick={() => { void removeMember(member); }}>{busy ? 'Removendo…' : 'Confirmar remoção'}</Button></div>
+              </section>}
             </li>)}
           </ul>
         </section>

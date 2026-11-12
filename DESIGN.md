@@ -15,6 +15,8 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   use the available container width; keep horizontal scrolling local to wide data.
 - Authentication and invitation screens retain their focused layouts outside the
   dashboard shell.
+  Login follows the invitation screen's brand header, muted background, rounded
+  surface and footer, with a centered `max-w-md` form and 44px controls.
 
 ## Hierarchy and spacing
 
