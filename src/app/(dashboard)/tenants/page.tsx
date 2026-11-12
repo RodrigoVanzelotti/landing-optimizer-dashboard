@@ -102,7 +102,7 @@ export default function TenantsPage(): React.ReactElement {
   const ownTenant = detail?.id === user.tenantId || detail?.memberships.some((member) => member.user.id === user.id);
 
   return (
-    <div lang="pt-BR" className="mx-auto max-w-6xl">
+    <div lang="pt-BR">
       <PageHeader title="Clientes" description="Gestão exclusiva da plataforma. Clientes, pessoas e acessos em um só lugar."
         action={<Button disabled={busy} variant={showCreate ? 'outline' : 'default'} onClick={() => setShowCreate(!showCreate)}>{showCreate ? 'Cancelar' : 'Novo cliente'}</Button>} />
       {error && <p role="alert" className="mb-5 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}

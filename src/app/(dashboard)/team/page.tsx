@@ -59,7 +59,7 @@ export default function TeamPage(): React.ReactElement {
   }
 
   return (
-    <div lang="pt-BR" className="mx-auto max-w-5xl">
+    <div lang="pt-BR">
       <PageHeader title="Sua equipe" description="As pessoas que transformam descobertas em resultados, juntas." />
       {error && <p role="alert" className="mb-5 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
       {notice && <p role="status" className="mb-5 text-sm text-green-800">{notice}</p>}

@@ -11,7 +11,9 @@ export default function DashboardLayout({
     <AuthGuard>
       <div className="flex min-h-screen flex-col md:flex-row">
         <Sidebar />
-        <main className="min-w-0 flex-1 overflow-auto p-5 sm:p-8">{children}</main>
+        <main className="min-w-0 flex-1 p-5 sm:p-8">
+          <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>
+        </main>
       </div>
     </AuthGuard>
   );
