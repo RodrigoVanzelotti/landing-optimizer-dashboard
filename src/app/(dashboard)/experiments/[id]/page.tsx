@@ -5,7 +5,7 @@ import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { api } from '@/lib/api';
+import { api, type ConversionGoal } from '@/lib/api';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
@@ -25,6 +25,8 @@ interface Variant {
   changes: Change[];
 }
 interface ExperimentDetail {
+  siteId: string;
+  primaryGoalId: string | null;
   id: string;
   name: string;
   hypothesis: string | null;
@@ -64,11 +66,17 @@ export default function ExperimentReviewPage(): React.ReactElement {
   const [exp, setExp] = useState<ExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [goals, setGoals] = useState<ConversionGoal[] | null>(null);
+  const [goalNotice, setGoalNotice] = useState('');
 
   const load = useCallback(() => {
     api
       .get<ExperimentDetail>(`/experiments/${params.id}`)
-      .then(setExp)
+      .then(detail => {
+        setExp(detail);
+        return api.get<ConversionGoal[]>(`/sites/${detail.siteId}/goals`);
+      })
+      .then(setGoals)
       .catch((e: Error) => setError(e.message));
   }, [params.id]);
 
@@ -91,6 +99,21 @@ export default function ExperimentReviewPage(): React.ReactElement {
     } finally {
       setBusy(false);
     }
+  }
+
+  async function saveGoal(event: React.FormEvent<HTMLFormElement>): Promise<void> {
+    event.preventDefault();
+    if (busy) return;
+    const goalId = String(new FormData(event.currentTarget).get('primaryGoalId') || '');
+    setBusy(true);
+    setError(null);
+    setGoalNotice('');
+    try {
+      await api.patch(`/experiments/${params.id}`, { primaryGoalId: goalId || null });
+      setGoalNotice('Primary goal saved.');
+      load();
+    } catch (e) { setError((e as Error).message); }
+    finally { setBusy(false); }
   }
 
   if (error && !exp) return <p className="text-sm text-red-600">{error}</p>;
@@ -131,6 +154,29 @@ export default function ExperimentReviewPage(): React.ReactElement {
             <dd>{Math.round(exp.allocation * 100)}%</dd>
           </div>
         </dl>
+      </Card>
+
+      <Card className="mb-4">
+        <CardTitle>Primary conversion goal</CardTitle>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Results count each session once per variant after exposure, for the selected goal.
+          Without a primary goal, results include all conversion goals.
+        </p>
+        {editable && ['draft', 'ai_suggested'].includes(exp.status) ? (
+          <form onSubmit={saveGoal} className="mt-3 flex flex-wrap items-end gap-3">
+            <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
+              <label htmlFor="primary-goal" className="text-sm">Goal</label>
+              <select id="primary-goal" name="primaryGoalId" key={exp.primaryGoalId ?? 'all'} defaultValue={exp.primaryGoalId ?? ''}
+                disabled={busy || goals === null} className="min-h-11 w-full min-w-0 rounded-md border border-border bg-transparent px-3 py-2 text-sm">
+                <option value="">All conversion goals</option>
+                {(goals ?? []).map(goal => <option key={goal.id} value={goal.id}>{goal.name} ({goal.kind})</option>)}
+              </select>
+            </div>
+            <Button type="submit" disabled={busy || goals === null}>Save primary goal</Button>
+          </form>
+        ) : <p className="mt-3 break-words text-sm">{exp.primaryGoalId ? goals?.find(goal => goal.id === exp.primaryGoalId)?.name ?? exp.primaryGoalId : 'All conversion goals'}. Changes are available before review.</p>}
+        {goals?.length === 0 ? <p className="mt-2 text-sm">Add conversion goals on the site detail page first.</p> : null}
+        <p role="status" className="mt-2 text-sm">{goalNotice}</p>
       </Card>
 
       <div className="grid gap-3">

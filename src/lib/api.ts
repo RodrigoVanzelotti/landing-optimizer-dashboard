@@ -7,6 +7,7 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 let accessToken: string | null = null;
+let refreshPromise: Promise<boolean> | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -24,8 +25,8 @@ export function setUnauthorizedHandler(handler: (() => void) | null): void {
 
 export async function ensureSession(): Promise<boolean> {
   if (accessToken) return true;
-  return tryRefresh()
-} 
+  return tryRefresh();
+}
 
 export interface ApiError {
   code: string;
@@ -62,7 +63,7 @@ async function request<T>(
     credentials: 'include',
   });
 
-  if (res.status === 401 && !path.startsWith('/auth/')) {
+  if (res.status === 401 && (!path.startsWith('/auth/') || path === '/auth/me' || path === '/auth/logout')) {
     // Attempt a silent refresh once, then replay the request.
     if (retry) {
       const refreshed = await tryRefresh();
@@ -86,19 +87,26 @@ async function request<T>(
   return (await res.json()) as T;
 }
 
-async function tryRefresh(): Promise<boolean> {
-  try {
-    const res = await fetch(`${API_URL}/auth/refresh`, {
-      method: 'POST',
-      credentials: 'include',
-    });
-    if (!res.ok) return false;
-    const data = (await res.json()) as { accessToken: string };
-    accessToken = data.accessToken;
-    return true;
-  } catch {
+function tryRefresh(): Promise<boolean> {
+  if (refreshPromise) return refreshPromise;
+  refreshPromise = refreshSession().finally(() => { refreshPromise = null; });
+  return refreshPromise;
+}
+
+async function refreshSession(): Promise<boolean> {
+  const res = await fetch(`${API_URL}/auth/refresh`, {
+    method: 'POST',
+    credentials: 'include',
+  });
+  if (res.status === 401 || res.status === 403) {
+    accessToken = null;
     return false;
   }
+  if (!res.ok) throw new ApiRequestError(res.status, { code: 'refresh_failed', message: 'Não foi possível renovar a sessão. Tente novamente.' });
+  const data = (await res.json()) as { accessToken?: unknown } | null;
+  if (!data || typeof data.accessToken !== 'string' || !data.accessToken) throw new Error('Invalid session response');
+  accessToken = data.accessToken;
+  return true;
 }
 
 /** Fetch a binary resource (e.g., a snapshot image) with the same auth flow. */
@@ -119,6 +127,10 @@ async function requestBlob(path: string, retry = true): Promise<Blob> {
 }
 
 export const api = {
+  logout: async (): Promise<void> => {
+    await request<void>('/auth/logout', { method: 'POST' });
+    setAccessToken(null);
+  },
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   getBlob: (path: string) => requestBlob(path),
   post: <T>(path: string, body?: unknown) =>

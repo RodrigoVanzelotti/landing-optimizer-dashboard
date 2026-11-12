@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { api, setAccessToken } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const inputClass = 'h-11 w-full rounded-md border border-border bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
@@ -13,6 +14,7 @@ export default function LoginPage(): React.ReactElement {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,7 +23,7 @@ export default function LoginPage(): React.ReactElement {
     setBusy(true);
     setError(null);
     try {
-      const res = await api.post<{ accessToken: string }>('/auth/login', { email, password });
+      const res = await api.post<{ accessToken: string }>('/auth/login', { email, password, rememberMe });
       setAccessToken(res.accessToken);
       router.push('/overview');
     } catch (err) {
@@ -73,6 +75,18 @@ export default function LoginPage(): React.ReactElement {
                   minLength={1}
                 />
               </div>
+              <fieldset disabled={busy} lang="pt-BR">
+                <Checkbox
+                  id="login-remember"
+                  label="Manter conectado neste computador"
+                  checked={rememberMe}
+                  onChange={setRememberMe}
+                  className="min-h-11"
+                />
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                  Por até 30 dias. Use apenas em um computador de confiança.
+                </p>
+              </fieldset>
               {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
               <Button type="submit" className="h-11 w-full" disabled={busy}>
                 {busy ? 'Signing in…' : 'Sign in'}
