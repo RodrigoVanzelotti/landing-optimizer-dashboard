@@ -11,20 +11,12 @@ import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 
 export const NAV_ITEMS: { href: string; label: string }[] = [
-  { href: '/overview', label: 'Overview' },
+  { href: '/overview', label: 'Visão geral' },
   { href: '/sites', label: 'Sites' },
-  { href: '/analytics', label: 'Analytics' },
-  { href: '/sections', label: 'Section performance' },
-  { href: '/heatmap', label: 'Heatmap' },
-  { href: '/insights', label: 'AI insights' },
-  { href: '/experiments', label: 'Experiments' },
-  { href: '/approvals', label: 'Experiment review' },
-  { href: '/results', label: 'Results' },
-  { href: '/guardrails', label: 'Brand guardrails' },
-  { href: '/audit', label: 'Audit log' },
-  { href: '/team', label: 'Team members' },
-  { href: '/settings', label: 'Settings' },
-  { href: '/billing', label: 'Billing' },
+  { href: '/insights', label: 'Insights de IA' },
+  { href: '/experiments', label: 'Experimentos' },
+  { href: '/results', label: 'Resultados' },
+  { href: '/guardrails', label: 'Diretrizes da marca' },
   { href: '/tenants', label: 'Clientes' },
 ];
 
@@ -47,20 +39,21 @@ export function Sidebar(): React.ReactElement {
   }
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/30 p-4 md:w-60 md:border-b-0 md:border-r">
+    <aside className="flex w-full shrink-0 flex-col border-b border-border bg-muted/30 p-4 md:sticky md:top-0 md:h-screen md:w-60 md:overflow-y-auto md:border-b-0 md:border-r">
       <div className="mb-6 px-2 text-lg font-semibold">
         Landing<span className="text-primary">Optimizer</span>
       </div>
       <p className="mb-4 px-2 text-xs text-muted-foreground">{roleLabels[user.role]}</p>
-      <nav className="flex flex-row gap-0.5 overflow-x-auto md:flex-col">
+      <nav aria-label="Navegação principal" className="flex flex-row gap-0.5 overflow-x-auto md:flex-col">
         {NAV_ITEMS.filter((item) => canViewRoute(user.role, item.href, user.platformOwner)).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/');
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
-                'shrink-0 rounded-md px-3 py-2 text-sm transition-colors',
+                'flex min-h-11 shrink-0 items-center rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
                 active ? 'bg-primary text-primary-foreground' : 'hover:bg-muted',
               )}
             >
@@ -70,6 +63,12 @@ export function Sidebar(): React.ReactElement {
         })}
       </nav>
       <div className="mt-auto pt-4 md:pt-6">
+        <p className="mb-3 break-words px-3 text-sm font-medium">{user.name ?? user.email}</p>
+        <Link
+          href={canViewRoute(user.role, '/settings') ? '/settings' : '/audit'}
+          aria-current={['/settings', '/audit', '/team', '/billing'].some(route => pathname === route) ? 'page' : undefined}
+          className={cn('mb-1 flex min-h-11 items-center rounded-md px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary', ['/settings', '/audit', '/team', '/billing'].some(route => pathname === route) ? 'bg-muted font-medium' : 'text-muted-foreground hover:bg-muted')}
+        >Configurações</Link>
         <Button
           type="button"
           variant="ghost"

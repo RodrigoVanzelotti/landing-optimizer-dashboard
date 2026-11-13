@@ -13,7 +13,7 @@ import type { HeatmapElement, HeatmapResult, SnapshotDetail } from '@/lib/api';
  *  - Clicks      → zone FILL, one-hue sequential blue ramp (magnitude).
  *  - Hover       → zone RING, orange, thickness scales with attention time.
  *  - Frustration → corner BADGE, warning icon + dead/rage count (status).
- *  - Scroll      → dashed horizontal RULES with "% of visitors reached" labels.
+ *  - Scroll      → dashed horizontal RULES with event counts relative to page views.
  *
  * Exact values are always available in the hover tooltip and in the table
  * rendered by the page below the image (the accessible fallback).
@@ -69,7 +69,7 @@ export function HeatmapOverlay({
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={imageUrl}
-        alt={`Snapshot of ${snapshot.urlPath}`}
+        alt={`Captura de ${snapshot.urlPath}`}
         className="block w-full select-none"
         draggable={false}
       />
@@ -113,7 +113,7 @@ export function HeatmapOverlay({
             {showBadge ? (
               <span
                 className="absolute right-1 top-1 inline-flex items-center gap-1 rounded-full border border-border bg-white px-1.5 py-0.5 text-[11px] font-medium leading-none text-foreground shadow-sm"
-                title={`${zone.metrics.deadClicks} dead + ${zone.metrics.rageClicks} rage clicks`}
+                title={`${zone.metrics.deadClicks} sem resposta + ${zone.metrics.rageClicks} cliques repetidos`}
               >
                 <span aria-hidden style={{ color: FRUSTRATION_INK }}>
                   ⚠
@@ -136,7 +136,7 @@ export function HeatmapOverlay({
               }}
             >
               <span className="absolute right-2 -translate-y-1/2 rounded-full border border-border bg-white px-2 py-0.5 text-[11px] leading-none text-foreground shadow-sm">
-                {s.bucket}% of page — {Math.round(s.pct * 100)}% of visitors
+                {s.bucket}% da página · {Math.round(s.pct * 100)}% das visualizações
               </span>
             </div>
           ))
@@ -155,13 +155,13 @@ export function HeatmapOverlay({
             {tooltip.zone.selector}
           </div>
           <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 tabular-nums">
-            <span>Clicks</span>
+            <span>Cliques</span>
             <span className="text-right">{tooltip.zone.metrics.ctaClicks}</span>
-            <span>Hover time</span>
+            <span>Tempo de atenção</span>
             <span className="text-right">{formatMs(tooltip.zone.metrics.hoverMs)}</span>
-            <span>Dead clicks</span>
+            <span>Sem resposta</span>
             <span className="text-right">{tooltip.zone.metrics.deadClicks}</span>
-            <span>Rage clicks</span>
+            <span>Repetidos</span>
             <span className="text-right">{tooltip.zone.metrics.rageClicks}</span>
           </div>
         </div>
@@ -182,7 +182,7 @@ export function HeatmapLegend({ layers }: { layers: HeatmapLayers }): React.Reac
               background: `linear-gradient(to right, ${CLICK_RAMP[0]}, ${CLICK_RAMP[3]})`,
             }}
           />
-          Clicks (fill: few → many)
+          Cliques (intensidade: poucos → muitos)
         </span>
       ) : null}
       {layers.hover ? (
@@ -191,7 +191,7 @@ export function HeatmapLegend({ layers }: { layers: HeatmapLayers }): React.Reac
             className="h-3 w-3 rounded-sm"
             style={{ boxShadow: `inset 0 0 0 2px ${HOVER_RING}` }}
           />
-          Hover attention (ring: thicker = longer)
+          Atenção (contorno mais espesso = mais tempo)
         </span>
       ) : null}
       {layers.frustration ? (
@@ -199,7 +199,7 @@ export function HeatmapLegend({ layers }: { layers: HeatmapLayers }): React.Reac
           <span aria-hidden style={{ color: FRUSTRATION_INK }}>
             ⚠
           </span>
-          Frustration (dead + rage clicks)
+          Frustração (cliques sem resposta + repetidos)
         </span>
       ) : null}
       {layers.scroll ? (
@@ -208,7 +208,7 @@ export function HeatmapLegend({ layers }: { layers: HeatmapLayers }): React.Reac
             className="inline-block w-8"
             style={{ borderTop: `1.5px dashed ${SCROLL_RULE}` }}
           />
-          Scroll depth (% of visitors reaching)
+          Rolagem (eventos / visualizações)
         </span>
       ) : null}
     </div>

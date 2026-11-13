@@ -9,6 +9,7 @@ import { useSites } from '@/lib/use-sites';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
+import { DataState } from '@/components/data-state';
 
 const inputClass =
   'w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
@@ -17,7 +18,7 @@ type SaveState = { kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string
 
 export default function GuardrailsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
-  const { sites, loading } = useSites();
+  const { sites, loading, error: sitesError } = useSites();
   const [siteId, setSiteId] = useState('');
   const [tone, setTone] = useState('');
   const [bannedWords, setBannedWords] = useState('');
@@ -80,13 +81,11 @@ export default function GuardrailsPage(): React.ReactElement {
     }
   }
 
-  if (!loading && sites.length === 0) {
+  if (loading || sitesError || sites.length === 0) {
     return (
       <div>
         <PageHeader title="Brand guardrails" description="Constrain AI copy to your brand voice." />
-        <p className="text-sm text-muted-foreground">
-          Create a site first to configure guardrails.
-        </p>
+        {sitesError ? <DataState error title="Não foi possível carregar seus sites" description="Confira sua conexão e recarregue a página para tentar novamente." onRetry={() => window.location.reload()} /> : loading ? <DataState loading title="Carregando diretrizes…" /> : <DataState title="As diretrizes precisam de um site" description="Depois de cadastrar um site, você poderá definir o tom de voz e os limites para as sugestões de IA." href="/sites" action="Ir para sites" />}
       </div>
     );
   }

@@ -10,6 +10,7 @@ import { useSites } from '@/lib/use-sites';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
+import { DataState } from '@/components/data-state';
 
 export default function SitesPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
@@ -76,7 +77,7 @@ export default function SitesPage(): React.ReactElement {
       ) : loading && !list ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No sites yet.</p>
+        <DataState title="Seu primeiro site começa por aqui" description={editable ? 'Cadastre o nome e o domínio no formulário acima. Depois, você receberá as instruções para instalar o snippet e começar a coletar dados.' : 'Peça a um editor ou administrador para cadastrar um site. Assim que ele estiver conectado, você poderá acompanhar seus dados.'} />
       ) : (
         <div className="grid gap-3">
           {rows.map((site) => (

@@ -50,6 +50,22 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 - Avoid decorative motion, new fonts, illustrations or new palette values for routine
   dashboard work. Keep the interface predictable and task focused.
 
+## Navigation and data presentation
+
+- Overview combines the site KPIs, event comparison, section performance and
+  snapshot heatmap. One site selector scopes every block. Keep each block's time
+  scope visible: overview and heatmaps cover 30 days; events and sections are
+  accumulated history. Event counts are not a unique-user funnel.
+- Experiments owns the list, pending-review queue and inline review. Keep review
+  selection in the URL so deep links and browser back continue to work.
+- Settings groups team, activity log and billing. Its navigation entry sits
+  immediately above sign out. Preserve each area's role restrictions; viewers
+  retain activity-log access without loading team or billing content.
+- Use `DataState` for loading, empty and failed reads. Empty states explain what
+  data is missing and how to begin collecting it; request failures provide recovery
+  and must never be presented as missing data. Keep unavailable billing distinct
+  from a feature waiting for visitor events.
+
 ## Verification
 
 Inspect real desktop and mobile renders (including 390px and a wide desktop), long

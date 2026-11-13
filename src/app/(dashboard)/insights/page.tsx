@@ -9,6 +9,7 @@ import { useSites } from '@/lib/use-sites';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
+import { DataState } from '@/components/data-state';
 
 interface Suggestion {
   id: string;
@@ -21,17 +22,21 @@ interface Suggestion {
 
 export default function InsightsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
-  const { sites } = useSites();
+  const { sites, loading: sitesLoading, error: sitesError } = useSites();
   const siteId = sites[0]?.id;
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   function load(id: string): void {
+    setLoading(true); setError(false);
     api
       .get<Suggestion[]>(`/sites/${id}/ai/suggestions`)
       .then(setSuggestions)
-      .catch(() => setSuggestions([]));
+      .catch(() => setError(true))
+      .finally(() => setLoading(false));
   }
 
   useEffect(() => {
@@ -76,8 +81,12 @@ export default function InsightsPage(): React.ReactElement {
       />
       {msg ? <p className="mb-4 text-sm text-muted-foreground">{msg}</p> : null}
 
-      {suggestions.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No suggestions yet. Run an analysis.</p>
+      {sitesError || error ? <DataState error title="Não foi possível consultar os insights" description="Confira sua conexão e tente novamente." onRetry={() => siteId ? load(siteId) : window.location.reload()} />
+        : sitesLoading ? <DataState loading title="Preparando seus insights…" />
+        : !siteId ? <DataState title="Primeiro, conecte seu site" description="A análise precisa de um site cadastrado para gerar propostas de melhoria." href="/sites" action="Ir para sites" />
+        : loading ? <DataState loading title="Consultando sugestões…" />
+        : suggestions.length === 0 ? (
+        <DataState title="Suas próximas ideias vão aparecer aqui" description={editable ? 'Execute uma análise para buscar oportunidades. Se ainda não houver sugestões, confira a instalação do snippet e aguarde mais interações dos visitantes.' : 'Um editor ou administrador pode executar uma análise. As sugestões geradas ficarão disponíveis aqui para consulta.'} />
       ) : (
         <div className="grid gap-3">
           {suggestions.map((s) => (
