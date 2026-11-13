@@ -49,6 +49,15 @@ describe('api request bodies', () => {
 });
 
 describe('session renewal', () => {
+  it.each([null, 'new-login'])('does not restore a stale refresh after the session changes to %s', async (token) => {
+    let resolve!: (response: Response) => void;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(done => { resolve = done; }));
+    const refresh = ensureSession();
+    setAccessToken(token);
+    resolve(Response.json({ accessToken: 'stale-token' }));
+    await expect(refresh).rejects.toThrow('Session changed');
+    expect(getAccessToken()).toBe(token);
+  });
   it('renews /auth/me after inactivity and replays it with the new token', async () => {
     setAccessToken('expired');
     const fetchMock = vi.spyOn(globalThis, 'fetch')

@@ -34,7 +34,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 RUN mkdir -p public
-RUN npm test -- --pool=forks --poolOptions.forks.singleFork && npm run build
+RUN npm test -- --maxWorkers=1 && npm run build
 RUN test -f .next/standalone/server.js
 
 

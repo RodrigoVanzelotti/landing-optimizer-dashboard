@@ -9,8 +9,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { formatMs, HeatmapLegend, HeatmapOverlay, type HeatmapLayers } from '@/components/heatmap-overlay';
 import { barWidth } from '@/lib/analytics';
 import { formatNumber, formatPct } from '@/lib/utils';
+import { useSession } from '@/lib/session';
+import { canEdit } from '@/lib/permissions';
+import { uploadSnapshotFile } from '@/lib/snapshots';
 
 export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: string }) {
+  const user = useSession();
+  const [uploading, setUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [uploadError, setUploadError] = useState(false);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [snapshotId, setSnapshotId] = useState('');
   const [snapshot, setSnapshot] = useState<SnapshotDetail | null>(null);
@@ -20,6 +27,26 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [layers, setLayers] = useState<HeatmapLayers>({ clicks: true, hover: true, frustration: true, scroll: true });
+
+  const uploadControl = canEdit(user.role) ? <div className="my-5 space-y-2">
+    <label htmlFor="snapshot-upload" className="block text-sm font-medium">Enviar arquivo de captura</label>
+    <p id="snapshot-upload-help" className="text-sm text-muted-foreground">Selecione o arquivo JSON baixado pelo site. Limite de 6 MB.</p>
+    <input id="snapshot-upload" type="file" accept=".json,application/json" disabled={uploading} aria-describedby="snapshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={async event => {
+      const input = event.currentTarget;
+      const file = input.files?.[0];
+      if (!file || uploading) return;
+      setUploading(true); setUploadError(false); setUploadMessage('Enviando captura…');
+      try {
+        await uploadSnapshotFile(file, siteId);
+        setUploadMessage('Captura salva. O mapa está sendo atualizado.');
+        setAttempt(value => value + 1);
+      } catch (error) {
+        setUploadError(true);
+        setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Selecione o arquivo novamente para tentar.');
+      } finally { setUploading(false); input.value = ''; }
+    }} />
+    {uploadMessage && <p role={uploadError ? 'alert' : 'status'} className="text-sm">{uploadMessage}</p>}
+  </div> : null;
 
   useEffect(() => {
     let active = true;
@@ -56,14 +83,16 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
     <DataState title="Prepare a primeira captura do site" description="O mapa precisa de uma imagem da página para posicionar as interações. Após instalar o snippet, siga os passos abaixo." />
     <ol className="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
       <li>Abra sua página com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Se o endereço já tiver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
-      <li>Aguarde a mensagem “captura salva” no canto superior direito da página. A mensagem de preparação ainda não confirma o envio. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
-      <li>Volte aqui e verifique novamente. As interações serão exibidas conforme forem coletadas.</li>
+      <li>Aguarde o download do arquivo de captura. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
+      <li>Entre no dashboard como editor ou administrador e envie o arquivo abaixo. As interações serão exibidas conforme forem coletadas.</li>
     </ol>
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">A captura é executada somente para você. Valores de formulários e elementos com data-lo-ignore são removidos antes do envio.</p>
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Valores de formulários e elementos com data-lo-ignore são removidos da captura. Confira o conteúdo da página antes de capturar.</p>
+    {uploadControl}
     <Button variant="outline" className="mt-4 h-11" onClick={() => setAttempt(n => n + 1)}>Já capturei, verificar novamente</Button>
   </div>;
 
   return <div>
+    {uploadControl}
     {snapshots.length > 0 && <div className="mb-5 flex flex-col gap-3">
       <label htmlFor="heatmap-snapshot" className="text-sm font-medium">Captura da página</label>
       <select id="heatmap-snapshot" value={snapshotId} onChange={e => setSnapshotId(e.target.value)} className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm">

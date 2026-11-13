@@ -8,8 +8,10 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 let accessToken: string | null = null;
 let refreshPromise: Promise<boolean> | null = null;
+let sessionVersion = 0;
 
 export function setAccessToken(token: string | null): void {
+  sessionVersion++;
   accessToken = token;
 }
 
@@ -94,16 +96,19 @@ function tryRefresh(): Promise<boolean> {
 }
 
 async function refreshSession(): Promise<boolean> {
+  const version = sessionVersion;
   const res = await fetch(`${API_URL}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
   });
+  if (version !== sessionVersion) throw new Error('Session changed during renewal');
   if (res.status === 401 || res.status === 403) {
     accessToken = null;
     return false;
   }
   if (!res.ok) throw new ApiRequestError(res.status, { code: 'refresh_failed', message: 'Não foi possível renovar a sessão. Tente novamente.' });
   const data = (await res.json()) as { accessToken?: unknown } | null;
+  if (version !== sessionVersion) throw new Error('Session changed during renewal');
   if (!data || typeof data.accessToken !== 'string' || !data.accessToken) throw new Error('Invalid session response');
   accessToken = data.accessToken;
   return true;
