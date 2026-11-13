@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { api, ApiRequestError } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { roleLabels, type UserRole } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,10 @@ export function TeamSettings(): React.ReactElement {
   const [copied, setCopied] = useState(false);
   const [role, setRole] = useState<UserRole>('viewer');
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [reactivation, setReactivation] = useState<{ email: string; role: UserRole } | null>(null);
+  const inviteForm = useRef<HTMLFormElement>(null);
+  const reactivationTitle = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { if (reactivation) reactivationTitle.current?.focus(); }, [reactivation]);
   const load = useCallback(async () => { setTeam(await api.get<Team>('/team')); }, []);
   useEffect(() => { void load().catch((err: Error) => setError(err.message)); }, [load]);
   const admins = team?.members.filter((member) => member.role === 'admin').length ?? 0;
@@ -42,9 +46,32 @@ export function TeamSettings(): React.ReactElement {
     const form = event.currentTarget;
     const data = new FormData(form);
     await mutate(async () => {
-      const result = await api.post<Invitation & { url: string }>('/team/invitations', { name: data.get('name'), email: data.get('email'), role });
-      setLink(result.url); setCopied(false); form.reset(); setRole('viewer');
+      try {
+        const result = await api.post<Invitation & { url: string }>('/team/invitations', { name: data.get('name'), email: data.get('email'), role });
+        setLink(result.url); setCopied(false); form.reset(); setRole('viewer');
+      } catch (err) {
+        const details = err instanceof ApiRequestError && err.status === 409 ? err.error.details : null;
+        if (details && typeof details === 'object' && 'reactivationAvailable' in details && details.reactivationAvailable === true) {
+          setReactivation({ email: String(data.get('email')).trim().toLowerCase(), role });
+          setLink(''); setCopied(false); setRemovingId(null);
+          return;
+        }
+        throw err;
+      }
     });
+  }
+
+  async function reactivate(): Promise<void> {
+    if (!reactivation) return;
+    await mutate(async () => {
+      await api.post<Member>('/team/reactivations', reactivation);
+      setReactivation(null); inviteForm.current?.reset(); setRole('viewer');
+    }, 'Acesso reativado neste workspace. A pessoa pode entrar com as credenciais existentes.');
+  }
+
+  function cancelReactivation(): void {
+    setReactivation(null);
+    requestAnimationFrame(() => inviteForm.current?.querySelector<HTMLInputElement>('[name="email"]')?.focus());
   }
 
   async function copy(): Promise<void> {
@@ -80,14 +107,19 @@ export function TeamSettings(): React.ReactElement {
           <section className="mb-10 rounded-xl bg-muted/50 p-5 sm:p-6" aria-labelledby="invite-title">
             <h2 id="invite-title" className="text-xl font-semibold tracking-tight">Convide alguém para sua equipe</h2>
             <p className="mt-2 text-sm leading-relaxed text-slate-600">O convite é exclusivo para e-mails <strong className="break-all text-foreground">@{team.domain}</strong>, vale por 7 dias e pode ser usado uma vez.</p>
-            <form onSubmit={invite} className="mt-5 grid gap-4 sm:grid-cols-2">
-              <div><label htmlFor="team-name" className="mb-2 block text-sm font-medium">Nome da pessoa</label><input id="team-name" name="name" autoComplete="name" maxLength={120} required disabled={busy || full} className={inputClass} /></div>
-              <div><label htmlFor="team-email" className="mb-2 block text-sm font-medium">E-mail profissional</label><input id="team-email" name="email" type="email" autoComplete="email" maxLength={254} required disabled={busy || full} placeholder={`pessoa@${team.domain}`} className={inputClass} /></div>
-              <div><label htmlFor="team-role" className="mb-2 block text-sm font-medium">Perfil de acesso</label><select id="team-role" value={role} onChange={(event) => setRole(event.target.value as UserRole)} disabled={busy || full} className={inputClass}>
+            <form ref={inviteForm} onSubmit={invite} className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div><label htmlFor="team-name" className="mb-2 block text-sm font-medium">Nome da pessoa</label><input id="team-name" name="name" autoComplete="name" maxLength={120} required disabled={busy || full || !!reactivation} className={inputClass} /></div>
+              <div><label htmlFor="team-email" className="mb-2 block text-sm font-medium">E-mail profissional</label><input id="team-email" name="email" type="email" autoComplete="email" maxLength={254} required disabled={busy || full || !!reactivation} placeholder={`pessoa@${team.domain}`} className={inputClass} /></div>
+              <div><label htmlFor="team-role" className="mb-2 block text-sm font-medium">Perfil de acesso</label><select id="team-role" value={role} onChange={(event) => setRole(event.target.value as UserRole)} disabled={busy || full || !!reactivation} className={inputClass}>
                 <option value="viewer">Visualizador</option><option value="editor">Editor</option><option value="admin" disabled={adminsFull}>Administrador</option>
               </select></div>
-              <div className="flex items-end"><Button type="submit" className="h-11 w-full sm:w-auto" disabled={busy || full || (role === 'admin' && adminsFull)}>{busy ? 'Salvando…' : 'Gerar link de convite'}</Button></div>
+              <div className="flex items-end"><Button type="submit" className="h-11 w-full sm:w-auto" disabled={busy || full || !!reactivation || (role === 'admin' && adminsFull)}>{busy ? 'Salvando…' : 'Gerar link de convite'}</Button></div>
             </form>
+            {reactivation && <section className="mt-6 border-t border-border pt-5" aria-labelledby="reactivate-title">
+              <h3 id="reactivate-title" ref={reactivationTitle} tabIndex={-1} className="text-lg font-semibold focus:outline-none">Esta conta já existe. Reativar acesso?</h3>
+              <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">A conta de <strong className="break-all text-foreground">{reactivation.email}</strong> foi preservada. Deseja reativar o acesso a este workspace como <strong className="text-foreground">{roleLabels[reactivation.role]}</strong>? O nome, a senha e o histórico existentes serão mantidos.</p>
+              <div className="mt-4 flex flex-wrap gap-3"><Button type="button" className="h-11" disabled={busy || full || (reactivation.role === 'admin' && adminsFull)} onClick={() => { void reactivate(); }}>{busy ? 'Reativando…' : 'Reativar conta'}</Button><Button type="button" variant="outline" className="h-11" disabled={busy} onClick={cancelReactivation}>Cancelar</Button></div>
+            </section>}
             {full && <p className="mt-3 text-sm text-amber-900">Todas as vagas estão ocupadas ou reservadas. Revogue um convite pendente para liberar uma vaga.</p>}
             {adminsFull && <p className="mt-3 text-sm text-slate-600">As 3 vagas de administrador estão ocupadas ou reservadas.</p>}
             {link && <div className="mt-6 border-t border-border pt-5">

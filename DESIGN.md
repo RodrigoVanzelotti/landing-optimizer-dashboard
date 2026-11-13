@@ -52,15 +52,47 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Navigation and data presentation
 
-- Overview combines the site KPIs, event comparison, section performance and
-  snapshot heatmap. One site selector scopes every block. Keep each block's time
-  scope visible: overview and heatmaps cover 30 days; events and sections are
-  accumulated history. Event counts are not a unique-user funnel.
+- Overview has two URL-backed tabs: **Dados e indicadores** contains the site
+  KPIs, event comparison and section performance; **Experiência do usuário**
+  contains only **Veja a experiência na própria página**, with the snapshot heatmap.
+  One site selector scopes both tabs and stays selected when switching.
+  **Dados e indicadores** uses one timeframe (last week, 30 days, six calendar
+  months or one calendar year) for KPIs, temporal charts, events and sections.
+  Compare adjacent ranges of equal duration, using complete UTC days and excluding
+  today. Heatmaps retain their separately labelled 30-day scope.
+  Current/previous chart lines share a scale and differ by solid/dashed strokes.
+  Provide keyboard/touch exploration and an accessible table of exact values.
+  Missing retained history is a gap, never zero; incomplete ranges disable deltas.
+  Form journeys count anonymous sessions, matching start and later submit on the
+  same form and page. Prioritize completion rate and sessions without observed
+  submission; do not describe raw event counts as users or confirmed exits.
+  Metric definitions and research: [Overview analytics](docs/OVERVIEW_ANALYTICS.md).
+- Future heatmap direction: place annotations based on observed data directly
+  over the page image, anchored to the relevant element or region. Each annotation
+  should cite its metric, period and sample size, distinguish observations from
+  hypotheses, and remain tied to its snapshot/path so a changed layout cannot move
+  it onto unrelated content. Annotation UI, persistence and generation are deferred
+  beyond this first version; the current overlays remain the foundation.
 - Experiments owns the list, pending-review queue and inline review. Keep review
   selection in the URL so deep links and browser back continue to work.
 - Settings groups team, activity log and billing. Its navigation entry sits
   immediately above sign out. Preserve each area's role restrictions; viewers
   retain activity-log access without loading team or billing content.
+- Activity log loads records only after a filter is explicitly applied, 25 rows
+  per page. Offer last week / 30 days / six months / year, action, author and
+  newest/oldest ordering. Audit dates include today, unlike overview comparisons.
+  Show the actor, affected account/site when available, target ID and timestamp.
+  Only administrators may list/filter authors outside the current team; API reads
+  redact their identities for other roles and reject direct historical-author
+  filters. Keep historical records when a member leaves. Administrative mutations
+  and their audit writes share a database transaction. See [audit coverage](docs/AUDIT.md).
+- Removing a team member revokes workspace access while preserving their account.
+  When inviting a former member whose account still exists, ask the administrator
+  to **Reativar conta** or **Cancelar** inline. Preserve entered values on cancel,
+  keep the existing name/password, and restore only the selected workspace role
+  after confirmation. Recheck administrator permission, email domain, capacity
+  and prior accepted invitation or removal audit in this workspace; never attach an unrelated
+  existing account or change a current member through this flow.
 - Use `DataState` for loading, empty and failed reads. Empty states explain what
   data is missing and how to begin collecting it; request failures provide recovery
   and must never be presented as missing data. Keep unavailable billing distinct

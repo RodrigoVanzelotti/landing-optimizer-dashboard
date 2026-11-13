@@ -152,7 +152,7 @@ describe('logout', () => {
     expect(getAccessToken()).toBeNull();
   });
 
-  it.each(['network', 'server'])('preserves the token so the user can retry after a %s failure', async (failure) => {
+  it.each(['network', 'server'])('clears the local token while reporting a %s logout failure', async (failure) => {
     setAccessToken('access-token');
     const fetchMock = vi.spyOn(globalThis, 'fetch');
     if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'));
@@ -160,7 +160,7 @@ describe('logout', () => {
 
     await expect(api.logout()).rejects.toThrow();
 
-    expect(getAccessToken()).toBe('access-token');
+    expect(getAccessToken()).toBeNull();
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 

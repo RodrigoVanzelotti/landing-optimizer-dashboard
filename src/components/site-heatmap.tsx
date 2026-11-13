@@ -56,7 +56,7 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
     <DataState title="Prepare a primeira captura do site" description="O mapa precisa de uma imagem da página para posicionar as interações. Após instalar o snippet, siga os passos abaixo." />
     <ol className="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
       <li>Abra sua página com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Se o endereço já tiver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
-      <li>Aguarde a confirmação de captura no canto superior direito da página.</li>
+      <li>Aguarde a mensagem “captura salva” no canto superior direito da página. A mensagem de preparação ainda não confirma o envio. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
       <li>Volte aqui e verifique novamente. As interações serão exibidas conforme forem coletadas.</li>
     </ol>
     <p className="mt-4 text-xs leading-relaxed text-muted-foreground">A captura é executada somente para você. Valores de formulários e elementos com data-lo-ignore são removidos antes do envio.</p>

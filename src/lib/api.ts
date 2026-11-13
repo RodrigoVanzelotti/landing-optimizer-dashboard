@@ -128,8 +128,8 @@ async function requestBlob(path: string, retry = true): Promise<Blob> {
 
 export const api = {
   logout: async (): Promise<void> => {
-    await request<void>('/auth/logout', { method: 'POST' });
-    setAccessToken(null);
+    try { await request<void>('/auth/logout', { method: 'POST' }); }
+    finally { setAccessToken(null); }
   },
   get: <T>(path: string) => request<T>(path, { method: 'GET' }),
   getBlob: (path: string) => requestBlob(path),
@@ -177,6 +177,23 @@ export interface Overview {
   conversionRate: number;
   ctaClicks: number;
   formSubmits: number;
+}
+
+export type AnalyticsTimeframe = '7d' | '30d' | '6m' | '1y';
+export interface ReportMetrics {
+  pageViews: number; sessions: number; ctaClicks: number; conversions: number;
+  formSubmits: number; formStarts: number; formCompletions: number;
+  formCompletionRate: number | null;
+}
+export interface AnalyticsReport {
+  timeframe: AnalyticsTimeframe;
+  timezone: 'UTC'; granularity: 'day' | 'week';
+  range: { from: string; to: string; previousFrom: string; previousTo: string };
+  coverage: { availableFrom: string; currentComplete: boolean; previousComplete: boolean };
+  current: ReportMetrics; previous: ReportMetrics;
+  series: { from: string; to: string; previousFrom: string; previousTo: string; current: ReportMetrics | null; previous: ReportMetrics | null }[];
+  events: { event: string; count: number }[];
+  sections: { section: string; views: number; deadClicks: number; rageClicks: number; dwellMs: number }[];
 }
 
 export interface VariantResult {

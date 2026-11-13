@@ -24,17 +24,14 @@ export function Sidebar(): React.ReactElement {
   const pathname = usePathname();
   const user = useSession();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState(false);
 
   async function logout(): Promise<void> {
     setBusy(true);
-    setError(false);
     try {
       await api.logout();
       window.location.replace('/login');
     } catch {
-      setError(true);
-      setBusy(false);
+      window.location.replace('/login?logout=incomplete');
     }
   }
 
@@ -79,11 +76,6 @@ export function Sidebar(): React.ReactElement {
         >
           {busy ? 'Saindo…' : 'Sair'}
         </Button>
-        {error ? (
-          <p role="alert" className="mt-2 px-3 text-xs text-red-600">
-            Não foi possível sair. Tente novamente.
-          </p>
-        ) : null}
       </div>
     </aside>
   );

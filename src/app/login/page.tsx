@@ -3,7 +3,7 @@
 import type * as React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api, setAccessToken } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -17,6 +17,10 @@ export default function LoginPage(): React.ReactElement {
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [logoutIncomplete, setLogoutIncomplete] = useState(false);
+  useEffect(() => {
+    setLogoutIncomplete(new URLSearchParams(window.location.search).get('logout') === 'incomplete');
+  }, []);
 
   async function submit(e: React.FormEvent): Promise<void> {
     e.preventDefault();
@@ -45,6 +49,7 @@ export default function LoginPage(): React.ReactElement {
         <div className="flex flex-1 items-center justify-center py-12 sm:py-16">
           <section aria-labelledby="login-title" className="w-full max-w-md rounded-2xl bg-card p-7 shadow-[0_20px_70px_-25px_rgba(15,23,42,0.18)] sm:p-12">
             <h1 id="login-title" className="text-2xl font-semibold tracking-tight">Sign in</h1>
+            {logoutIncomplete && <p role="alert" className="mt-4 text-sm leading-relaxed text-muted-foreground">A sessão local foi encerrada, mas não foi possível confirmar a saída no servidor. Em um computador compartilhado, feche o navegador e limpe os dados deste site antes de sair.</p>}
             <form onSubmit={submit} aria-busy={busy} className="mt-6 space-y-5">
               <div>
                 <label htmlFor="login-email" className="mb-2 block text-sm font-medium">Email</label>
