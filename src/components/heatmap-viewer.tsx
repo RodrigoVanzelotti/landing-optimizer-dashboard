@@ -14,6 +14,7 @@ export function HeatmapViewer({ snapshot, imageUrl, heatmap, layers }: {
   const cinemaScroll = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState(true);
   const [markings, setMarkings] = useState(true);
+  const hasPositions = snapshot.nodes.length > 0;
 
   function syncScroll(from: HTMLDivElement | null, to: HTMLDivElement | null) {
     if (!from || !to) return;
@@ -35,7 +36,7 @@ export function HeatmapViewer({ snapshot, imageUrl, heatmap, layers }: {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" className="h-11" onClick={() => setFit(value => !value)}>{fit ? 'Tamanho original' : 'Ajustar à largura'}</Button>
-          <Button variant="outline" className="h-11" onClick={() => setMarkings(value => !value)}>{markings ? 'Ocultar marcações' : 'Mostrar marcações'}</Button>
+          {hasPositions && <Button variant="outline" className="h-11" onClick={() => setMarkings(value => !value)}>{markings ? 'Ocultar marcações' : 'Mostrar marcações'}</Button>}
           {cinema
             ? <Button variant="outline" className="h-11" onClick={() => dialog.current?.close()}>Fechar</Button>
             : <Button variant="outline" className="h-11" aria-haspopup="dialog" onClick={() => {
@@ -44,11 +45,12 @@ export function HeatmapViewer({ snapshot, imageUrl, heatmap, layers }: {
             }}>Ampliar visualização</Button>}
         </div>
       </div>
-      {cinema && <div className="border-b border-border px-3 py-3"><HeatmapLegend layers={layers} /></div>}
+      {!hasPositions && <p className="border-b border-border px-3 py-3 text-sm text-muted-foreground">Referência visual sem posições de elementos. As marcações estão desativadas; consulte as métricas abaixo do visualizador.</p>}
+      {cinema && hasPositions && <div className="border-b border-border px-3 py-3"><HeatmapLegend layers={layers} /></div>}
       <div ref={cinema ? cinemaScroll : inlineScroll} role="region" aria-label={cinema ? 'Mapa de calor ampliado com rolagem' : 'Mapa de calor com rolagem'} tabIndex={0}
         className={`min-h-0 overflow-auto overscroll-contain bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary ${cinema ? 'flex-1' : 'h-[560px] max-h-[65dvh]'}`}>
         <div className="mx-auto" style={{ width: fit ? '100%' : snapshot.width, maxWidth: fit ? snapshot.width : undefined }}>
-          <HeatmapOverlay snapshot={snapshot} imageUrl={imageUrl} heatmap={heatmap} layers={markings ? layers : { clicks: false, hover: false, frustration: false, scroll: false }} />
+          <HeatmapOverlay snapshot={snapshot} imageUrl={imageUrl} heatmap={heatmap} layers={markings && hasPositions ? layers : { clicks: false, hover: false, frustration: false, scroll: false }} />
         </div>
       </div>
     </>;

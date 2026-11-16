@@ -1,6 +1,9 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { uploadSnapshotFile } from '../src/lib/snapshots';
+import { selectSnapshotFiles, uploadSnapshotFile } from '../src/lib/snapshots';
 import { setAccessToken } from '../src/lib/api';
+import { renderPdfSnapshot } from '../src/lib/pdf-snapshot';
+
+vi.mock('../src/lib/pdf-snapshot', () => ({ renderPdfSnapshot: vi.fn() }));
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); setAccessToken(null); });
 
@@ -57,4 +60,27 @@ it('rejects unsupported or oversized screenshots before decoding or uploading', 
   }
   expect(decode).not.toHaveBeenCalled();
   expect(fetch).not.toHaveBeenCalled();
+});
+
+it('selects JSON and PDF together regardless of drag order, and supports separate additions', () => {
+  const json = new File(['{}'], 'capture.json', { type: 'application/json' });
+  const pdf = new File(['pdf'], 'print.PDF');
+  expect(selectSnapshotFiles([pdf, json])).toEqual({ capture: json, visual: pdf });
+  expect(selectSnapshotFiles([pdf])).toEqual({ visual: pdf });
+  expect(() => selectSnapshotFiles([pdf, new File(['png'], 'page.png', { type: 'image/png' })])).toThrow('apenas uma');
+  expect(() => selectSnapshotFiles([json, json])).toThrow('um JSON');
+  expect(() => selectSnapshotFiles([new File([], 'empty.pdf')])).toThrow('limite');
+});
+
+it('imports a PDF as a visual reference without reusing DOM coordinates from the print layout', async () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200; canvas.height = 3400;
+  vi.mocked(renderPdfSnapshot).mockResolvedValue(canvas);
+  vi.spyOn(HTMLCanvasElement.prototype, 'toDataURL').mockReturnValue('data:image/webp;base64,cGRm');
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ saved: true }));
+  const snapshot = { siteId: 'site', width: 1200, height: 3000, path: '/page', nodes: [{ selector: '#cta', rect: [10, 20, 30, 40] }] };
+  const pdf = new File(['pdf'], 'page.pdf', { type: 'application/pdf' });
+  await uploadSnapshotFile({ size: 100, text: async () => JSON.stringify(snapshot) }, 'site', pdf);
+  expect(renderPdfSnapshot).toHaveBeenCalledWith(pdf, 1200);
+  expect(JSON.parse(fetch.mock.calls[0][1]?.body as string)).toEqual({ ...snapshot, height: 3400, nodes: [], image: 'cGRm', contentType: 'image/webp' });
 });

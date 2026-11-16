@@ -12,7 +12,7 @@ import { barWidth } from '@/lib/analytics';
 import { formatNumber, formatPct } from '@/lib/utils';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
-import { uploadSnapshotFile } from '@/lib/snapshots';
+import { selectSnapshotFiles, uploadSnapshotFile } from '@/lib/snapshots';
 
 export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: string }) {
   const user = useSession();
@@ -21,6 +21,7 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const [uploadError, setUploadError] = useState(false);
   const [captureFile, setCaptureFile] = useState<File | null>(null);
   const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [dragging, setDragging] = useState(false);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [snapshotId, setSnapshotId] = useState('');
   const [snapshot, setSnapshot] = useState<SnapshotDetail | null>(null);
@@ -31,38 +32,68 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const [attempt, setAttempt] = useState(0);
   const [layers, setLayers] = useState<HeatmapLayers>({ clicks: true, hover: true, frustration: true, scroll: true });
 
+  function receiveFiles(files: File[]) {
+    if (uploading) return;
+    try {
+      const selected = selectSnapshotFiles(files);
+      if (selected.capture) setCaptureFile(selected.capture);
+      if (selected.visual) setScreenshotFile(selected.visual);
+      setUploadError(false);
+      setUploadMessage(files.length ? 'Arquivos selecionados. Confira a seleção e envie a captura.' : '');
+    } catch (error) {
+      setUploadError(true);
+      setUploadMessage(error instanceof Error ? error.message : 'Não foi possível selecionar os arquivos.');
+    }
+  }
+
   const captureHelp = <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
     <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Como fazer uma captura do site</summary>
     <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
       <li>Com o snippet instalado, abra a página desejada com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Para outra página, mantenha o caminho dela. Se já houver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
-      <li>Aguarde o download de <code>landing-optimizer-captura.json</code>. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
-      <li>Para maior fidelidade, faça também um screenshot de página inteira, sem mudar a largura da janela ou o conteúdo. No Chrome ou Edge: abra as ferramentas do desenvolvedor, desative a simulação de dispositivos, recarregue com <code>lo_capture=1</code> e aguarde o novo JSON. Pressione <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>Cmd+Shift+P</kbd>), procure <code>Capture full size screenshot</code> e salve a imagem. Aguarde o aviso de captura desaparecer antes de fotografar a página.</li>
-      <li>Como editor ou administrador, selecione o JSON abaixo e, se gerou o screenshot, a imagem correspondente. Clique em <strong>Enviar captura</strong>. Gere um novo par de arquivos sempre que o layout mudar.</li>
+      <li>Aguarde o download de <code>landing-optimizer-captura.json</code>. Esse arquivo já contém a imagem da página e as posições dos elementos; não é necessário tirar um print separado. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
+      <li>Como editor ou administrador, arraste apenas o JSON até a área abaixo ou clique para selecioná-lo. Confira o nome e clique em <strong>Enviar captura</strong>. Gere uma nova captura sempre que o layout mudar.</li>
     </ol>
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">O JSON remove valores de formulários e elementos com data-lo-ignore. Um screenshot manual não passa por essa proteção: capture uma página sem dados pessoais ou conteúdo privado. Use a mesma página e largura nos dois arquivos; apenas a proporção da imagem pode ser conferida automaticamente.</p>
+    <details className="mt-4 text-sm leading-relaxed text-muted-foreground">
+      <summary className="cursor-pointer font-medium text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Substituir a imagem ou importar um PDF (opcional)</summary>
+      <p className="mt-3">Se precisar substituir a imagem do JSON, faça um screenshot da mesma página, sem mudar a largura ou o conteúdo. Abra o DevTools com <kbd>F12</kbd> (Mac: <kbd>Cmd+Option+I</kbd>), desative a simulação de dispositivos e recarregue com <code>lo_capture=1</code>. Aguarde o novo JSON e o aviso desaparecer. Clique dentro do DevTools, abra o menu de três pontos dele → <strong>Run command</strong> e procure <code>Capture full size screenshot</code>. Com o foco no DevTools, <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>Cmd+Shift+P</kbd>) abre esse mesmo menu.</p>
+      <p className="mt-3">Para PDF, use o menu do navegador → <strong>Imprimir</strong> → <strong>Salvar como PDF</strong>. A impressão pode reorganizar o site; o PDF é exibido como referência, sem marcações. As métricas continuam na tabela.</p>
+      <p className="mt-3">Adicione o screenshot ou PDF junto do JSON. A imagem separada substitui a que já está no arquivo de captura.</p>
+    </details>
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">O JSON remove valores de formulários e elementos com data-lo-ignore. Screenshots manuais e PDFs não passam por essa proteção: capture uma página sem dados pessoais ou conteúdo privado. Para um screenshot, use a mesma página e largura nos dois arquivos; apenas a proporção da imagem pode ser conferida automaticamente.</p>
   </details>;
 
   const uploadControl = canEdit(user.role) ? <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
     <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Enviar ou atualizar captura</summary>
-    <form className="mt-4 space-y-3" onSubmit={async event => {
-    event.preventDefault();
-    if (!captureFile || uploading) return;
-    setUploading(true); setUploadError(false); setUploadMessage('Enviando captura…');
-    try {
-      await uploadSnapshotFile(captureFile, siteId, screenshotFile ?? undefined);
-      setUploadMessage('Captura salva. O mapa está sendo atualizado.');
-      setAttempt(value => value + 1);
-    } catch (error) {
-      setUploadError(true);
-      setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.');
-    } finally { setUploading(false); }
-  }}>
-    <label htmlFor="snapshot-upload" className="block text-sm font-medium">Enviar arquivo de captura</label>
-    <p id="snapshot-upload-help" className="text-sm text-muted-foreground">Selecione o arquivo JSON baixado pelo site. Limite de 6 MB.</p>
-    <input id="snapshot-upload" type="file" accept=".json,application/json" disabled={uploading} aria-describedby="snapshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={event => { setCaptureFile(event.target.files?.[0] ?? null); setUploadMessage(''); }} />
-    <label htmlFor="screenshot-upload" className="block text-sm font-medium">Screenshot de página inteira (opcional)</label>
-    <p id="screenshot-upload-help" className="text-sm text-muted-foreground">PNG, JPEG ou WebP, até 3 MB. Substitui a imagem do JSON e mantém seu mapa de elementos. A imagem precisa corresponder à mesma captura. Consulte o tutorial acima.</p>
-    <input id="screenshot-upload" type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading} aria-describedby="screenshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={event => { setScreenshotFile(event.target.files?.[0] ?? null); setUploadMessage(''); }} />
+    <form className="mt-4 space-y-3" aria-busy={uploading} onSubmit={async event => {
+      event.preventDefault();
+      if (!captureFile || uploading) return;
+      setUploading(true); setUploadError(false); setUploadMessage('Preparando e enviando captura…');
+      try {
+        await uploadSnapshotFile(captureFile, siteId, screenshotFile ?? undefined);
+        setUploadMessage('Captura salva. A visualização está sendo atualizada.');
+        setAttempt(value => value + 1);
+      } catch (error) {
+        setUploadError(true);
+        setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.');
+      } finally { setUploading(false); }
+    }}>
+    <label htmlFor="snapshot-files" className={`flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-5 text-center focus-within:outline focus-within:outline-2 focus-within:outline-primary ${uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:bg-muted'} ${dragging ? 'border-primary bg-muted' : 'border-border'}`}
+      onDragOver={event => { event.preventDefault(); if (!uploading) { event.dataTransfer.dropEffect = 'copy'; setDragging(true); } }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+      onDrop={event => { event.preventDefault(); setDragging(false); receiveFiles(Array.from(event.dataTransfer.files)); }}>
+      <span className="text-sm font-medium">{dragging ? 'Solte os arquivos aqui' : 'Arraste o arquivo de captura (.json) até aqui'}</span>
+      <span className="text-sm text-primary underline underline-offset-4">ou clique para selecionar arquivos</span>
+      <span id="snapshot-files-help" className="text-xs leading-relaxed text-muted-foreground">A imagem já vem no JSON (até 6 MB). Para substituí-la, adicione PNG, JPEG ou WebP até 3 MB; PDF até 6 MB e 50 páginas.</span>
+      <input id="snapshot-files" type="file" multiple accept=".json,.pdf,application/json,application/pdf,image/png,image/jpeg,image/webp" disabled={uploading} aria-describedby="snapshot-files-help" className="sr-only" onChange={event => { receiveFiles(Array.from(event.target.files ?? [])); event.target.value = ''; }} />
+    </label>
+    {(captureFile || screenshotFile) && <ul aria-label="Arquivos selecionados" className="divide-y divide-border rounded-lg border border-border px-3">
+      {([['JSON', captureFile, () => setCaptureFile(null)], ['Imagem ou PDF', screenshotFile, () => setScreenshotFile(null)]] as const).map(([label, file, remove]) => file && <li key={label} className="flex min-w-0 items-center justify-between gap-3 py-2">
+        <p className="min-w-0 break-all text-sm"><span className="font-medium">{label}:</span> {file.name} <span className="text-muted-foreground">({file.size < 1024 * 1024 ? `${Math.max(1, Math.round(file.size / 1024))} KB` : `${(file.size / 1024 / 1024).toLocaleString('pt-BR', { maximumFractionDigits: 2 })} MB`})</span></p>
+        <Button type="button" variant="ghost" className="h-11 shrink-0" disabled={uploading} aria-label={`Remover ${file.name}`} onClick={() => { remove(); setUploadMessage(''); }}>Remover</Button>
+      </li>)}
+    </ul>}
+    {screenshotFile && (screenshotFile.type === 'application/pdf' || screenshotFile.name.toLowerCase().endsWith('.pdf')) && <p className="text-sm leading-relaxed text-muted-foreground">O PDF será exibido como referência, sem marcações sobre a página. A impressão pode alterar o layout; consulte as métricas na tabela. Para marcações alinhadas, use um screenshot.</p>}
+    {!captureFile && screenshotFile && <p className="text-sm text-muted-foreground">Adicione também o JSON baixado pelo site para enviar a captura.</p>}
     <Button type="submit" className="h-11" disabled={!captureFile || uploading}>{uploading ? 'Enviando…' : 'Enviar captura'}</Button>
     {uploadMessage && <p role={uploadError ? 'alert' : 'status'} className="text-sm">{uploadMessage}</p>}
   </form></details> : null;
@@ -113,13 +144,13 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
       <select id="heatmap-snapshot" value={snapshotId} onChange={e => setSnapshotId(e.target.value)} className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm">
         {snapshots.map(s => <option key={s.id} value={s.id}>{s.urlPath} · {new Date(s.capturedAt).toLocaleString('pt-BR')}</option>)}
       </select>
-      <fieldset className="mt-2"><legend className="mb-3 text-sm font-medium">Camadas do mapa</legend><div className="flex flex-wrap gap-4">
+      {snapshot?.nodes.length !== 0 && <fieldset className="mt-2"><legend className="mb-3 text-sm font-medium">Camadas do mapa</legend><div className="flex flex-wrap gap-4">
         {([['clicks', 'Cliques'], ['hover', 'Atenção'], ['frustration', 'Frustração'], ['scroll', 'Rolagem']] as const).map(([key, label]) => <Checkbox key={key} id={`layer-${key}`} label={label} checked={layers[key]} onChange={checked => setLayers(prev => ({ ...prev, [key]: checked }))} />)}
-      </div></fieldset>
+      </div></fieldset>}
     </div>}
     {loading ? <DataState loading title="Preparando o mapa de calor…" /> : snapshot && heatmap && <div className="space-y-5">
       {!heatmap.pageViews && !heatmap.elements.length && !heatmap.scrollDepth.length && <DataState title="Captura pronta. Agora faltam as interações." description="A imagem abaixo é a captura do site, ainda sem atividade registrada nos últimos 30 dias. O mapa será preenchido conforme seus visitantes interagirem." />}
-      <HeatmapLegend layers={layers} />
+      {snapshot.nodes.length > 0 && <HeatmapLegend layers={layers} />}
       <HeatmapViewer key={snapshot.id} snapshot={snapshot} imageUrl={imageUrl} heatmap={heatmap} layers={layers} />
       <p className="break-words text-xs leading-relaxed text-muted-foreground">Baseado em {formatNumber(heatmap.pageViews)} visualizações em {snapshot.urlPath} nos últimos 30 dias. Captura de {new Date(snapshot.capturedAt).toLocaleString('pt-BR')}.</p>
       {heatmap.scrollDepth.length > 0 && <Card className="shadow-none"><h3 className="mb-4 font-semibold">Até onde as pessoas chegam</h3><ul className="space-y-4">{heatmap.scrollDepth.map(row => <li key={row.bucket}>

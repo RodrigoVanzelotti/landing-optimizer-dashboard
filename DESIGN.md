@@ -74,7 +74,9 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   it onto unrelated content. Annotation UI, persistence and generation are deferred
   beyond this first version; the current overlays remain the foundation.
 - Heatmap captures combine an image with element rectangles and selectors from
-  the same page layout. Editors may pair the JSON with a real full-page screenshot;
+  the same page layout. The primary flow uploads a single JSON containing both
+  the image and geometry. Keep manual screenshot/PDF instructions secondary.
+  Editors may pair the JSON with a real full-page screenshot;
   validate proportions, resize high-density pixels within API limits and retain
   the original element coordinates. Manual screenshots must contain no private data.
   Keep the capture tutorial available after the first upload. Collapse upload
@@ -82,6 +84,10 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   The viewer has a bounded internal scroll area, fit-width/original-size controls
   and a marking toggle. Its expanded native dialog leaves visible margins and a
   dimmed backdrop; preserve scroll position between inline and expanded views.
+  Upload accepts drag/drop and keyboard/picker selection, with named removable
+  files and errors that preserve prior selections. PDFs are converted locally
+  into visual references; never reuse DOM coordinates on a print layout. Hide
+  overlay controls on captures without element positions and retain metrics below.
 - Experiments owns the list, pending-review queue and inline review. Keep review
   selection in the URL so deep links and browser back continue to work.
 - Settings groups team, activity log and billing. Its navigation entry sits
