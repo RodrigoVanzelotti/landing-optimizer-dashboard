@@ -73,6 +73,15 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   hypotheses, and remain tied to its snapshot/path so a changed layout cannot move
   it onto unrelated content. Annotation UI, persistence and generation are deferred
   beyond this first version; the current overlays remain the foundation.
+- Heatmap captures combine an image with element rectangles and selectors from
+  the same page layout. Editors may pair the JSON with a real full-page screenshot;
+  validate proportions, resize high-density pixels within API limits and retain
+  the original element coordinates. Manual screenshots must contain no private data.
+  Keep the capture tutorial available after the first upload. Collapse upload
+  instructions once captures exist so the page visualization remains prominent.
+  The viewer has a bounded internal scroll area, fit-width/original-size controls
+  and a marking toggle. Its expanded native dialog leaves visible margins and a
+  dimmed backdrop; preserve scroll position between inline and expanded views.
 - Experiments owns the list, pending-review queue and inline review. Keep review
   selection in the URL so deep links and browser back continue to work.
 - Settings groups team, activity log and billing. Its navigation entry sits

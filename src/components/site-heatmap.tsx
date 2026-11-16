@@ -6,7 +6,8 @@ import { DataState } from '@/components/data-state';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { formatMs, HeatmapLegend, HeatmapOverlay, type HeatmapLayers } from '@/components/heatmap-overlay';
+import { formatMs, HeatmapLegend, type HeatmapLayers } from '@/components/heatmap-overlay';
+import { HeatmapViewer } from '@/components/heatmap-viewer';
 import { barWidth } from '@/lib/analytics';
 import { formatNumber, formatPct } from '@/lib/utils';
 import { useSession } from '@/lib/session';
@@ -18,6 +19,8 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const [uploading, setUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState('');
   const [uploadError, setUploadError] = useState(false);
+  const [captureFile, setCaptureFile] = useState<File | null>(null);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
   const [snapshots, setSnapshots] = useState<SnapshotMeta[]>([]);
   const [snapshotId, setSnapshotId] = useState('');
   const [snapshot, setSnapshot] = useState<SnapshotDetail | null>(null);
@@ -28,25 +31,41 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const [attempt, setAttempt] = useState(0);
   const [layers, setLayers] = useState<HeatmapLayers>({ clicks: true, hover: true, frustration: true, scroll: true });
 
-  const uploadControl = canEdit(user.role) ? <div className="my-5 space-y-2">
+  const captureHelp = <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
+    <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Como fazer uma captura do site</summary>
+    <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
+      <li>Com o snippet instalado, abra a página desejada com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Para outra página, mantenha o caminho dela. Se já houver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
+      <li>Aguarde o download de <code>landing-optimizer-captura.json</code>. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
+      <li>Para maior fidelidade, faça também um screenshot de página inteira, sem mudar a largura da janela ou o conteúdo. No Chrome ou Edge: abra as ferramentas do desenvolvedor, desative a simulação de dispositivos, recarregue com <code>lo_capture=1</code> e aguarde o novo JSON. Pressione <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>Cmd+Shift+P</kbd>), procure <code>Capture full size screenshot</code> e salve a imagem. Aguarde o aviso de captura desaparecer antes de fotografar a página.</li>
+      <li>Como editor ou administrador, selecione o JSON abaixo e, se gerou o screenshot, a imagem correspondente. Clique em <strong>Enviar captura</strong>. Gere um novo par de arquivos sempre que o layout mudar.</li>
+    </ol>
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">O JSON remove valores de formulários e elementos com data-lo-ignore. Um screenshot manual não passa por essa proteção: capture uma página sem dados pessoais ou conteúdo privado. Use a mesma página e largura nos dois arquivos; apenas a proporção da imagem pode ser conferida automaticamente.</p>
+  </details>;
+
+  const uploadControl = canEdit(user.role) ? <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
+    <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Enviar ou atualizar captura</summary>
+    <form className="mt-4 space-y-3" onSubmit={async event => {
+    event.preventDefault();
+    if (!captureFile || uploading) return;
+    setUploading(true); setUploadError(false); setUploadMessage('Enviando captura…');
+    try {
+      await uploadSnapshotFile(captureFile, siteId, screenshotFile ?? undefined);
+      setUploadMessage('Captura salva. O mapa está sendo atualizado.');
+      setAttempt(value => value + 1);
+    } catch (error) {
+      setUploadError(true);
+      setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.');
+    } finally { setUploading(false); }
+  }}>
     <label htmlFor="snapshot-upload" className="block text-sm font-medium">Enviar arquivo de captura</label>
     <p id="snapshot-upload-help" className="text-sm text-muted-foreground">Selecione o arquivo JSON baixado pelo site. Limite de 6 MB.</p>
-    <input id="snapshot-upload" type="file" accept=".json,application/json" disabled={uploading} aria-describedby="snapshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={async event => {
-      const input = event.currentTarget;
-      const file = input.files?.[0];
-      if (!file || uploading) return;
-      setUploading(true); setUploadError(false); setUploadMessage('Enviando captura…');
-      try {
-        await uploadSnapshotFile(file, siteId);
-        setUploadMessage('Captura salva. O mapa está sendo atualizado.');
-        setAttempt(value => value + 1);
-      } catch (error) {
-        setUploadError(true);
-        setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Selecione o arquivo novamente para tentar.');
-      } finally { setUploading(false); input.value = ''; }
-    }} />
+    <input id="snapshot-upload" type="file" accept=".json,application/json" disabled={uploading} aria-describedby="snapshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={event => { setCaptureFile(event.target.files?.[0] ?? null); setUploadMessage(''); }} />
+    <label htmlFor="screenshot-upload" className="block text-sm font-medium">Screenshot de página inteira (opcional)</label>
+    <p id="screenshot-upload-help" className="text-sm text-muted-foreground">PNG, JPEG ou WebP, até 3 MB. Substitui a imagem do JSON e mantém seu mapa de elementos. A imagem precisa corresponder à mesma captura. Consulte o tutorial acima.</p>
+    <input id="screenshot-upload" type="file" accept="image/png,image/jpeg,image/webp" disabled={uploading} aria-describedby="screenshot-upload-help" className="block min-h-11 w-full min-w-0 text-sm file:mr-3 file:min-h-11 file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm hover:file:bg-muted focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" onChange={event => { setScreenshotFile(event.target.files?.[0] ?? null); setUploadMessage(''); }} />
+    <Button type="submit" className="h-11" disabled={!captureFile || uploading}>{uploading ? 'Enviando…' : 'Enviar captura'}</Button>
     {uploadMessage && <p role={uploadError ? 'alert' : 'status'} className="text-sm">{uploadMessage}</p>}
-  </div> : null;
+  </form></details> : null;
 
   useEffect(() => {
     let active = true;
@@ -78,20 +97,16 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
     return () => { active = false; if (objectUrl) URL.revokeObjectURL(objectUrl); };
   }, [siteId, snapshotId]);
 
-  if (error) return <DataState error title="Não foi possível carregar o mapa de calor" description="Confira sua conexão e tente novamente. Seus dados continuam salvos." onRetry={() => setAttempt(n => n + 1)} />;
+  if (error) return <div>{captureHelp}{uploadControl}<DataState error title="Não foi possível carregar o mapa de calor" description="Confira sua conexão e tente novamente. Seus dados continuam salvos." onRetry={() => setAttempt(n => n + 1)} /></div>;
   if (!loading && !snapshots.length) return <div>
     <DataState title="Prepare a primeira captura do site" description="O mapa precisa de uma imagem da página para posicionar as interações. Após instalar o snippet, siga os passos abaixo." />
-    <ol className="mt-5 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
-      <li>Abra sua página com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Se o endereço já tiver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
-      <li>Aguarde o download do arquivo de captura. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
-      <li>Entre no dashboard como editor ou administrador e envie o arquivo abaixo. As interações serão exibidas conforme forem coletadas.</li>
-    </ol>
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">Valores de formulários e elementos com data-lo-ignore são removidos da captura. Confira o conteúdo da página antes de capturar.</p>
+    {captureHelp}
     {uploadControl}
     <Button variant="outline" className="mt-4 h-11" onClick={() => setAttempt(n => n + 1)}>Já capturei, verificar novamente</Button>
   </div>;
 
   return <div>
+    {captureHelp}
     {uploadControl}
     {snapshots.length > 0 && <div className="mb-5 flex flex-col gap-3">
       <label htmlFor="heatmap-snapshot" className="text-sm font-medium">Captura da página</label>
@@ -105,7 +120,7 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
     {loading ? <DataState loading title="Preparando o mapa de calor…" /> : snapshot && heatmap && <div className="space-y-5">
       {!heatmap.pageViews && !heatmap.elements.length && !heatmap.scrollDepth.length && <DataState title="Captura pronta. Agora faltam as interações." description="A imagem abaixo é a captura do site, ainda sem atividade registrada nos últimos 30 dias. O mapa será preenchido conforme seus visitantes interagirem." />}
       <HeatmapLegend layers={layers} />
-      <HeatmapOverlay snapshot={snapshot} imageUrl={imageUrl} heatmap={heatmap} layers={layers} />
+      <HeatmapViewer key={snapshot.id} snapshot={snapshot} imageUrl={imageUrl} heatmap={heatmap} layers={layers} />
       <p className="break-words text-xs leading-relaxed text-muted-foreground">Baseado em {formatNumber(heatmap.pageViews)} visualizações em {snapshot.urlPath} nos últimos 30 dias. Captura de {new Date(snapshot.capturedAt).toLocaleString('pt-BR')}.</p>
       {heatmap.scrollDepth.length > 0 && <Card className="shadow-none"><h3 className="mb-4 font-semibold">Até onde as pessoas chegam</h3><ul className="space-y-4">{heatmap.scrollDepth.map(row => <li key={row.bucket}>
         <div className="mb-2 flex flex-wrap justify-between gap-2 text-sm"><span>{row.bucket}% da página</span><span>{formatNumber(row.reached)} eventos · {formatPct(row.pct)} das visualizações</span></div>

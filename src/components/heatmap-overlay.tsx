@@ -64,13 +64,15 @@ export function HeatmapOverlay({
   const max = React.useMemo(() => maxima(zones), [zones]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-lg border border-border">
+    <div className="relative w-full overflow-hidden" style={{ aspectRatio: `${snapshot.width} / ${snapshot.height}` }}>
       {/* The captured screenshot; zones are positioned in % of its size. */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={imageUrl}
         alt={`Captura de ${snapshot.urlPath}`}
-        className="block w-full select-none"
+        width={snapshot.width}
+        height={snapshot.height}
+        className="block h-full w-full select-none"
         draggable={false}
       />
 
@@ -93,7 +95,7 @@ export function HeatmapOverlay({
         if (showFill) {
           style.backgroundColor = withAlpha(
             binned(CLICK_RAMP, clicks, max.clicks),
-            0.55,
+            0.25,
           );
           style.outline = `1px solid ${withAlpha(CLICK_BORDER, 0.7)}`;
           style.outlineOffset = '-1px';
