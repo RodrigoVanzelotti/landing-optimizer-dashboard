@@ -40,7 +40,7 @@ function ExperimentsContent() {
   }, [attempt]);
 
   return <div lang="pt-BR">
-    <PageHeader title="Experimentos" description="Da hipótese à decisão: acompanhe testes e revise alterações no mesmo lugar. Toda publicação exige aprovação humana."
+    <PageHeader title="Experimentos" description="Publicação exige aprovação."
       action={<Button variant="outline" className="h-11" onClick={refresh}>Atualizar</Button>} />
     <dl className="mb-8 grid grid-cols-1 gap-5 border-y border-border py-5 sm:grid-cols-3">
       {[['Experimentos carregados', error ? '—' : experiments?.length ?? '—'], ['Em execução', error ? '—' : experiments?.filter(e => e.status === 'running').length ?? '—'], ['Aguardando revisão', queueError ? '—' : approvals?.length ?? '—']].map(([label, value]) => <div key={label}><dt className="text-sm text-muted-foreground">{label}</dt><dd className="mt-2 text-3xl font-semibold tabular-nums">{value}</dd></div>)}

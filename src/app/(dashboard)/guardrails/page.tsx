@@ -84,7 +84,7 @@ export default function GuardrailsPage(): React.ReactElement {
   if (loading || sitesError || sites.length === 0) {
     return (
       <div>
-        <PageHeader title="Brand guardrails" description="Constrain AI copy to your brand voice." />
+        <PageHeader title="Brand guardrails" />
         {sitesError ? <DataState error title="Não foi possível carregar seus sites" description="Confira sua conexão e recarregue a página para tentar novamente." onRetry={() => window.location.reload()} /> : loading ? <DataState loading title="Carregando diretrizes…" /> : <DataState title="As diretrizes precisam de um site" description="Depois de cadastrar um site, você poderá definir o tom de voz e os limites para as sugestões de IA." href="/sites" action="Ir para sites" />}
       </div>
     );
@@ -94,7 +94,7 @@ export default function GuardrailsPage(): React.ReactElement {
     <div>
       <PageHeader
         title="Brand guardrails"
-        description="Constrain AI-generated copy. Banned words and max length are enforced before suggestions are stored; tone and must-keep claims steer generation."
+
         action={editable ?
           <Button onClick={save} disabled={!siteId || state.kind === 'saving'}>
             {state.kind === 'saving' ? 'Saving…' : 'Save guardrails'}
@@ -140,8 +140,7 @@ export default function GuardrailsPage(): React.ReactElement {
         <Card>
           <CardTitle>Banned words</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            One per line or comma-separated. Suggestions containing these are dropped by the AI
-            service.
+            Uma por linha ou separadas por vírgula.
           </p>
           <textarea
             className={`${inputClass} mt-2 h-28 resize-y`}
@@ -155,7 +154,7 @@ export default function GuardrailsPage(): React.ReactElement {
         <Card>
           <CardTitle>Max copy length</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            Proposed copy longer than this (characters) is trimmed. Leave blank for no limit.
+            Caracteres. Em branco = sem limite.
           </p>
           <input
             className={`${inputClass} mt-2`}
@@ -170,7 +169,7 @@ export default function GuardrailsPage(): React.ReactElement {
         <Card>
           <CardTitle>Must-keep claims</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            One per line. Guidance for the AI to preserve these claims (e.g. certifications).
+            Uma por linha. Orientação para geração.
           </p>
           <textarea
             className={`${inputClass} mt-2 h-24 resize-y`}

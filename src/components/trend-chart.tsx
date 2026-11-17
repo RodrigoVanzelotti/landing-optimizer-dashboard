@@ -58,7 +58,7 @@ export function TrendChart({ report, metric, label, rate = false }: { report: An
         {report.series.map((row, i) => <rect key={row.from} x={x(i) - (width - 72) / Math.max(1, report.series.length - 1) / 2} y={16} width={(width - 72) / Math.max(1, report.series.length - 1)} height={200} fill="transparent" onMouseEnter={() => setPoint(i)} onPointerDown={() => setPoint(i)} />)}
       </svg>
     </div>
-    <p className="mt-2 text-xs text-muted-foreground">Toque no gráfico, passe o cursor ou use as setas do teclado para explorar.</p>
+
     {selected && <dl className="mt-4 grid gap-3 border-t border-border pt-4 text-sm sm:grid-cols-2" aria-live="polite">
       <div><dt className="text-xs text-muted-foreground">{dateSpan(selected.from, selected.to)}</dt><dd className="mt-1 font-semibold tabular-nums">{metricValue(current[index], rate)}</dd></div>
       <div><dt className="text-xs text-muted-foreground">Anterior · {dateSpan(selected.previousFrom, selected.previousTo)}</dt><dd className="mt-1 font-semibold tabular-nums">{metricValue(previous[index], rate)}</dd></div>

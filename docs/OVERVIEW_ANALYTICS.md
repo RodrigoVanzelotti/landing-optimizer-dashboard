@@ -90,3 +90,22 @@ added without a demonstrated need.
 - Dashboard tests cover graph gaps, zero baselines and rate-vs-count comparisons.
   Rendered checks exercise all timeframes, metric selection, table and keyboard
   exploration, empty/error/partial states and mobile/desktop layouts.
+
+## Dashboard refinements transferred from the previous workspace
+
+- Keep the report endpoint, timeframes, UTC boundaries, history coverage, anonymous
+  sessions, ordered form journey and temporal charts. Do not replace them with the
+  older overview endpoint or raw-event funnel.
+- KPI deltas use green/red plus signed text, with neutral unavailable comparisons.
+  Show previous values. Additional KPIs: conversion events per page view, CTA clicks
+  and CTA events per page view. Rates are event frequencies, not unique-user rates.
+- Conversion change is decomposed into `(current views - previous views) * previous
+  conversions / previous views` and the remainder attributed arithmetically to rate.
+  Show only with complete current/prior coverage; both require page views. This is
+  an arithmetic explanation, not causal attribution.
+- Rank section friction as `(dead clicks + rage clicks) / views * 100`, displaying
+  the underlying counts. It may exceed 100; absent denominators remain unavailable.
+- Experiment results use conversion/exposure bars and the API's statistical evidence.
+  Significant declines are red; an undefined relative lift is not automatically a loss.
+- Repeated explanatory text is collapsed in definitions. Preserve error recovery,
+  meaningful form instructions, permissions, and data-collection limitations.

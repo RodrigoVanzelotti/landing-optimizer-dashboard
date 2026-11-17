@@ -41,7 +41,7 @@ export default function SitesPage(): React.ReactElement {
 
   return (
     <div>
-      <PageHeader title="Sites" description="Each site gets a unique, signed install snippet." />
+      <PageHeader title="Sites" />
 
       {editable && <Card className="mb-6">
         <form onSubmit={createSite} className="flex flex-wrap items-end gap-3">
