@@ -58,7 +58,7 @@ export default function SiteInstallPage(): React.ReactElement {
     <div>
       <PageHeader
         title="Script installation"
-        description="Paste this snippet before </head>. It loads asynchronously and fails silently."
+        description="Adicione antes de </head>."
         action={editable ?
           <Button onClick={publish} variant="outline" disabled={publishing}>
             {publishing ? 'Publishing…' : 'Publish config'}

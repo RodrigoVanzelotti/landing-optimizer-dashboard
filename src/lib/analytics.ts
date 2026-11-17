@@ -35,3 +35,15 @@ export function changeLabel(current: number | null, previous: number | null, rat
   const delta = (current / previous - 1) * 100;
   return `${delta > 0 ? '+' : ''}${delta.toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%`;
 }
+
+export function metricDelta(current: number | null, previous: number | null, rate = false): number | null {
+  if (current === null || previous === null) return null;
+  if (rate) return (current - previous) * 100;
+  return previous > 0 ? ((current - previous) / previous) * 100 : current === 0 ? 0 : null;
+}
+
+export function conversionDrivers(current: { pageViews: number; conversions: number }, previous: { pageViews: number; conversions: number }): { traffic: number; rate: number } | null {
+  if (current.pageViews === 0 || previous.pageViews === 0) return null;
+  const traffic = (current.pageViews - previous.pageViews) * (previous.conversions / previous.pageViews);
+  return { traffic, rate: current.conversions - previous.conversions - traffic };
+}

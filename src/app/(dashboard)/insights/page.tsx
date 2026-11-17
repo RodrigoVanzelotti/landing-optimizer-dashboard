@@ -61,7 +61,7 @@ export default function InsightsPage(): React.ReactElement {
   async function materialize(id: string): Promise<void> {
     try {
       await api.post(`/ai/suggestions/${id}/materialize`);
-      setMsg('Created a draft experiment (requires approval before running).');
+      setMsg('Rascunho criado. Aprovação necessária.');
       if (siteId) load(siteId);
     } catch (e) {
       setMsg((e as Error).message);
@@ -72,7 +72,7 @@ export default function InsightsPage(): React.ReactElement {
     <div>
       <PageHeader
         title="AI insights"
-        description="AI proposes CRO experiments. It never publishes — everything requires approval."
+        description="Publicação exige aprovação."
         action={editable ?
           <Button onClick={analyze} disabled={busy || !siteId}>
             {busy ? 'Analyzing…' : 'Run analysis'}
