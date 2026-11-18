@@ -10,6 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "mock:seed": "node scripts/seed-mock.mjs",
+    "test:mock": "node --test scripts/seed-mock.test.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

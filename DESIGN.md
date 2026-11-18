@@ -52,10 +52,24 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Navigation and data presentation
 
+- The shared top navigation selects the active site across Overview, AI insights,
+  Experiments (including the review queue), Results and Brand guardrails. It also
+  appears in Sites; account/workspace pages such as Clients and Settings remain
+  workspace scoped. Preserve the current site during sidebar navigation. Reset
+  site-specific content and pending reads on a site change; never render another
+  site's experiment under the active site's name. Installation links explicitly
+  select their own site. Creating a site updates the shared list immediately.
+- Sites has an accessible star button beside each installation link. Each user
+  has at most one favorite per workspace, persisted by the authenticated API and
+  available across devices. The favorite initializes a fresh dashboard session;
+  manual site changes do not replace it. Replacing/removing it is a personal
+  preference available to viewers too, without granting permission to edit sites.
+  Failed saves preserve the previous favorite and show recovery. Missing favorites
+  fall back to the first accessible site. See [site selection](docs/SITE_SELECTION.md).
 - Overview has two URL-backed tabs: **Dados e indicadores** contains the site
   KPIs, event comparison and section performance; **Experiência do usuário**
   contains only **Veja a experiência na própria página**, with the snapshot heatmap.
-  One site selector scopes both tabs and stays selected when switching.
+  The shared top selector scopes both tabs and stays selected when switching.
   **Dados e indicadores** uses one timeframe (last week, 30 days, six calendar
   months or one calendar year) for KPIs, temporal charts, events and sections.
   Compare adjacent ranges of equal duration, using complete UTC days and excluding

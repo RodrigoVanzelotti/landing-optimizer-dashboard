@@ -62,7 +62,7 @@ const ACTIONS: Record<string, { label: string; action: string; variant?: 'destru
   completed: [{ label: 'Reverter', action: 'rollback', variant: 'destructive' }],
 };
 
-export function ExperimentDetail({ id, onChanged }: { id: string; onChanged: () => void }): React.ReactElement {
+export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId: string; onChanged: () => void }): React.ReactElement {
   const editable = canEdit(useSession().role);
   const [exp, setExp] = useState<ExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +73,11 @@ export function ExperimentDetail({ id, onChanged }: { id: string; onChanged: () 
   const load = useCallback(async () => {
     setError(null);
     const detail = await api.get<ExperimentDetail>(`/experiments/${id}`);
+    if (detail.siteId !== siteId) throw new Error('Este experimento pertence a outro site. Selecione o site correspondente no topo da página.');
     setExp(detail);
     try { setGoals(await api.get<ConversionGoal[]>(`/sites/${detail.siteId}/goals`)); }
     catch { setGoals(null); setError('Não foi possível carregar as metas. Tente novamente antes de alterá-las.'); }
-  }, [id]);
+  }, [id, siteId]);
 
   useEffect(() => { void load().catch((e: Error) => setError(e.message)); }, [load]);
 

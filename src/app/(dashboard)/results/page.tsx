@@ -7,8 +7,10 @@ import { BarChart } from '@/components/bar-chart';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { formatPct } from '@/lib/utils';
+import { useSites } from '@/lib/use-sites';
 
 export default function ResultsPage() {
+  const { siteId } = useSites();
   const [experiments, setExperiments] = useState<Experiment[] | null>(null);
   const [selected, setSelected] = useState('');
   const [results, setResults] = useState<VariantResult[] | null>(null);
@@ -17,11 +19,11 @@ export default function ResultsPage() {
   useEffect(() => {
     let active = true;
     setError(false);
-    api.get<Experiment[]>('/experiments').then(list => {
+    api.get<Experiment[]>(`/experiments?siteId=${encodeURIComponent(siteId)}`).then(list => {
       if (active) { setExperiments(list); setSelected(current => current || list[0]?.id || ''); }
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
-  }, [attempt]);
+  }, [attempt, siteId]);
   useEffect(() => {
     if (!selected) return;
     let active = true;

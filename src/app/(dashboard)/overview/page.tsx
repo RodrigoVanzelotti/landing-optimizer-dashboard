@@ -21,9 +21,7 @@ function OverviewContent() {
   const params = useSearchParams();
   const tab = params.get('tab') === 'experience' ? 'experience' : 'data';
   const user = useSession();
-  const { sites, loading, error } = useSites();
-  const [selected, setSelected] = useState('');
-  const siteId = selected || sites[0]?.id || '';
+  const { sites, siteId, loading, error } = useSites();
   const site = sites.find(s => s.id === siteId);
   const [hello, setHello] = useState('Olá');
   const [attempt, setAttempt] = useState(0);
@@ -47,15 +45,6 @@ function OverviewContent() {
         : loading ? <DataState loading title="Carregando…" />
         : !sites.length ? <DataState title="Nenhum site cadastrado" description="Cadastre um site e instale o snippet." href="/sites" action="Ir para sites" />
         : <>
-          <div className="mb-6 flex flex-col gap-4 border-y border-border py-4 sm:flex-row sm:items-end sm:justify-between">
-            <div className="min-w-0 sm:max-w-sm">
-              <label htmlFor="overview-site" className="mb-2 block text-sm font-medium">Site</label>
-              <select id="overview-site" value={siteId} onChange={e => setSelected(e.target.value)} className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm">
-                {sites.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <p className="break-all text-sm text-muted-foreground">{site?.primaryDomain}</p>
-          </div>
           <nav aria-label="Nesta visão geral" className="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-border">
             {[['data', 'Dados e indicadores'], ['experience', 'Experiência do usuário']].map(([id, label]) => <Link key={id} href={`/overview?tab=${id}`} scroll={false} aria-current={tab === id ? 'page' : undefined} className={`inline-flex min-h-11 items-center border-b-2 px-1 py-3 text-sm font-medium ${tab === id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</Link>)}
           </nav>

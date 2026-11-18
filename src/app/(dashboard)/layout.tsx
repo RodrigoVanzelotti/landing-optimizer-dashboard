@@ -1,6 +1,8 @@
 import type * as React from 'react';
 import { AuthGuard } from '@/components/auth-guard';
 import { Sidebar } from '@/components/sidebar';
+import { SitesProvider } from '@/lib/use-sites';
+import { SiteNavigation, SiteScope } from '@/components/site-navigation';
 
 export default function DashboardLayout({
   children,
@@ -9,12 +11,14 @@ export default function DashboardLayout({
 }): React.ReactElement {
   return (
     <AuthGuard>
+      <SitesProvider>
       <div className="flex min-h-screen flex-col md:flex-row">
         <Sidebar />
         <main className="min-w-0 flex-1 p-5 sm:p-8">
-          <div className="mx-auto w-full min-w-0 max-w-6xl">{children}</div>
+          <div className="mx-auto w-full min-w-0 max-w-6xl"><SiteNavigation /><SiteScope>{children}</SiteScope></div>
         </main>
       </div>
+      </SitesProvider>
     </AuthGuard>
   );
 }

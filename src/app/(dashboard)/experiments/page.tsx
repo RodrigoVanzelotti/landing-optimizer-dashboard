@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { ExperimentDetail } from '@/components/experiment-detail';
 import { experimentStatusLabels as labels } from '@/lib/experiments';
+import { useSites } from '@/lib/use-sites';
 
 interface Approval { id: string; riskScore: number; experiment: { id: string; name: string; type: string } }
 
@@ -18,6 +19,7 @@ export default function ExperimentsPage() {
 }
 
 function ExperimentsContent() {
+  const { siteId } = useSites();
   const router = useRouter();
   const params = useSearchParams();
   const selected = params.get('review');
@@ -33,11 +35,11 @@ function ExperimentsContent() {
     let active = true;
     setError(false); setQueueError(false);
     void Promise.allSettled([
-      api.get<Experiment[]>('/experiments').then(data => { if (active) setExperiments(data); }).catch(() => { if (active) setError(true); }),
-      api.get<Approval[]>('/approvals?status=pending').then(data => { if (active) setApprovals(data); }).catch(() => { if (active) setQueueError(true); }),
+      api.get<Experiment[]>(`/experiments?siteId=${encodeURIComponent(siteId)}`).then(data => { if (active) setExperiments(data); }).catch(() => { if (active) setError(true); }),
+      api.get<Approval[]>(`/approvals?status=pending&siteId=${encodeURIComponent(siteId)}`).then(data => { if (active) setApprovals(data); }).catch(() => { if (active) setQueueError(true); }),
     ]);
     return () => { active = false; };
-  }, [attempt]);
+  }, [attempt, siteId]);
 
   return <div lang="pt-BR">
     <PageHeader title="Experimentos" description="Publicação exige aprovação."
@@ -51,7 +53,7 @@ function ExperimentsContent() {
     </nav>
     {selected && <section className="mb-8 border-y border-border py-6" aria-label="Revisão do experimento">
       <Link href={filter === 'review' ? '/experiments?filter=review' : '/experiments'} className="mb-6 inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Fechar detalhes e voltar à lista</Link>
-      <ExperimentDetail key={selected} id={selected} onChanged={refresh} />
+      <ExperimentDetail key={selected} id={selected} siteId={siteId} onChanged={refresh} />
     </section>}
     {filter === 'review'
       ? queueError ? <DataState error title="As revisões não carregaram" description="Tente novamente para consultar a fila de aprovações." onRetry={refresh} />

@@ -1,4 +1,5 @@
 export const auditActionLabels: Record<string, string> = {
+  'user.preferences.updated': 'Site favorito atualizado',
   'team.invited': 'Convite enviado', 'team.invitation_revoked': 'Convite revogado',
   'team.invitation_accepted': 'Convite aceito',
   'team.member_added': 'Pessoa adicionada à equipe', 'team.member_removed': 'Pessoa removida da equipe',

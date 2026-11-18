@@ -18,8 +18,9 @@ type SaveState = { kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string
 
 export default function GuardrailsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
-  const { sites, loading, error: sitesError } = useSites();
-  const [siteId, setSiteId] = useState('');
+  const { sites, siteId, loading, error: sitesError } = useSites();
+  const [ready, setReady] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [tone, setTone] = useState('');
   const [bannedWords, setBannedWords] = useState('');
   const [maxLength, setMaxLength] = useState('');
@@ -27,24 +28,23 @@ export default function GuardrailsPage(): React.ReactElement {
   const [state, setState] = useState<SaveState>({ kind: 'idle' });
 
   useEffect(() => {
-    const first = sites[0];
-    if (!siteId && first) setSiteId(first.id);
-  }, [sites, siteId]);
-
-  useEffect(() => {
     if (!siteId) return;
+    let active = true;
     setState({ kind: 'idle' });
     api
       .get<GuardrailView>(`/sites/${siteId}/guardrails`)
       .then((view) => {
+        if (!active) return;
         const r = view.rules ?? {};
         setTone(r.tone ?? '');
         setBannedWords((r.bannedWords ?? []).join('\n'));
         setMaxLength(r.maxLength != null ? String(r.maxLength) : '');
         setMustKeepClaims((r.mustKeepClaims ?? []).join('\n'));
+        setReady(true);
       })
-      .catch((e: Error) => setState({ kind: 'error', message: e.message }));
-  }, [siteId]);
+      .catch((e: Error) => { if (active) setState({ kind: 'error', message: e.message }); });
+    return () => { active = false; };
+  }, [siteId, attempt]);
 
   async function save(): Promise<void> {
     const rules: GuardrailRules = {};
@@ -96,35 +96,23 @@ export default function GuardrailsPage(): React.ReactElement {
         title="Brand guardrails"
 
         action={editable ?
-          <Button onClick={save} disabled={!siteId || state.kind === 'saving'}>
+          <Button onClick={save} disabled={!siteId || !ready || state.kind === 'saving'}>
             {state.kind === 'saving' ? 'Saving…' : 'Save guardrails'}
           </Button> : undefined
         }
       />
 
-      <div className="mb-4 flex items-center gap-2">
-        <label className="text-sm text-muted-foreground">Site</label>
-        <select
-          className="h-9 rounded-md border border-border bg-transparent px-3 text-sm"
-          value={siteId}
-          onChange={(e) => setSiteId(e.target.value)}
-        >
-          {sites.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      {!ready && state.kind !== 'error' && <DataState loading title="Carregando diretrizes deste site…" />}
 
-      {state.kind === 'error' ? (
+      {!ready && state.kind === 'error' && <DataState error title="Diretrizes indisponíveis" description={state.message ?? 'Tente novamente.'} onRetry={() => setAttempt(value => value + 1)} />}
+      {ready && state.kind === 'error' ? (
         <p className="mb-4 text-sm text-red-600">{state.message}</p>
       ) : null}
       {state.kind === 'saved' ? (
         <p className="mb-4 text-sm text-green-700">{state.message}</p>
       ) : null}
 
-      <div className="grid gap-4 md:max-w-2xl">
+      {ready && <div className="grid gap-4 md:max-w-2xl">
         <Card>
           <CardTitle>Tone</CardTitle>
           <input
@@ -179,7 +167,7 @@ export default function GuardrailsPage(): React.ReactElement {
             onChange={(e) => setMustKeepClaims(e.target.value)}
           />
         </Card>
-      </div>
+      </div>}
     </div>
   );
 }

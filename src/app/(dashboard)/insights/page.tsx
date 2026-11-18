@@ -22,8 +22,7 @@ interface Suggestion {
 
 export default function InsightsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
-  const { sites, loading: sitesLoading, error: sitesError } = useSites();
-  const siteId = sites[0]?.id;
+  const { siteId, loading: sitesLoading, error: sitesError } = useSites();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
