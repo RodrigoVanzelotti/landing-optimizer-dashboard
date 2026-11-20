@@ -28,7 +28,7 @@ export async function uploadSnapshotFile(file: Pick<File, 'size' | 'text'>, site
   if (screenshot) {
     const isPdf = screenshot.type === 'application/pdf' || screenshot.name.toLowerCase().endsWith('.pdf');
     selectSnapshotFiles([screenshot]);
-    if (!isPdf && !['image/png', 'image/jpeg', 'image/webp'].includes(screenshot.type)) throw new Error('Use um screenshot PNG, JPEG ou WebP de até 3 MB.');
+    if (!isPdf && !['image/png', 'image/jpeg', 'image/webp'].includes(screenshot.type)) throw new Error('Use uma captura de tela PNG, JPEG ou WebP de até 3 MB.');
     if (!('width' in snapshot) || !('height' in snapshot) || typeof snapshot.width !== 'number' || typeof snapshot.height !== 'number' || !Number.isInteger(snapshot.width) || !Number.isInteger(snapshot.height) || snapshot.width < 200 || snapshot.width > 4000 || snapshot.height < 200 || snapshot.height > 40000) {
       throw new Error('O JSON não contém dimensões válidas. Gere uma nova captura.');
     }
@@ -40,7 +40,7 @@ export async function uploadSnapshotFile(file: Pick<File, 'size' | 'text'>, site
     } else {
       let bitmap: ImageBitmap;
       try { bitmap = await createImageBitmap(screenshot); }
-      catch { throw new Error('Não foi possível ler a imagem. Selecione outro screenshot.'); }
+      catch { throw new Error('Não foi possível ler a imagem. Selecione outra captura de tela.'); }
       try {
         // Allow pixel rounding, never stretch a viewport-only image over a full-page map.
         if (Math.abs(bitmap.height * snapshot.width / bitmap.width - snapshot.height) > 2) {
@@ -57,7 +57,7 @@ export async function uploadSnapshotFile(file: Pick<File, 'size' | 'text'>, site
     }
     const dataUrl = canvas.toDataURL('image/webp', 0.9);
     const image = dataUrl.split(',')[1];
-    if (!image || image.length > 4 * 1024 * 1024) throw new Error('A imagem preparada excede 3 MB. Reduza o tamanho do screenshot ou exporte menos páginas do PDF.');
+    if (!image || image.length > 4 * 1024 * 1024) throw new Error('A imagem preparada excede 3 MB. Reduza o tamanho da captura de tela ou exporte menos páginas do PDF.');
     snapshot = { ...snapshot, image, contentType: dataUrl.startsWith('data:image/webp') ? 'image/webp' : 'image/png' };
   }
   try { await api.post('/snapshots', snapshot); }

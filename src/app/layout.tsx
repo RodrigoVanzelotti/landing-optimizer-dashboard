@@ -4,7 +4,7 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Landing Optimizer',
-  description: 'Privacy-preserving AI landing page optimization',
+  description: 'Otimização de páginas com IA e respeito à privacidade',
 };
 
 export default function RootLayout({
@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }): React.ReactElement {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <body className="min-h-screen antialiased">{children}</body>
     </html>
   );

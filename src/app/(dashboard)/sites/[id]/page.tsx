@@ -46,9 +46,9 @@ export default function SiteInstallPage(): React.ReactElement {
     setPublishMsg(null);
     try {
       const res = await api.post<{ version: number }>(`/sites/${params.id}/config/publish`);
-      setPublishMsg(`Config published (v${res.version}).`);
+      setPublishMsg(`Configuração publicada (v${res.version}).`);
     } catch (e) {
-      setPublishMsg(`Publish failed: ${(e as Error).message}`);
+      setPublishMsg(`Não foi possível publicar: ${(e as Error).message}`);
     } finally {
       setPublishing(false);
     }
@@ -57,11 +57,11 @@ export default function SiteInstallPage(): React.ReactElement {
   return (
     <div>
       <PageHeader
-        title="Script installation"
+        title="Instalação do código"
         description="Adicione antes de </head>."
         action={editable ?
           <Button onClick={publish} variant="outline" disabled={publishing}>
-            {publishing ? 'Publishing…' : 'Publish config'}
+            {publishing ? 'Publicando…' : 'Publicar configuração'}
           </Button> : undefined
         }
       />
@@ -73,9 +73,9 @@ export default function SiteInstallPage(): React.ReactElement {
         <div className="grid gap-4">
           <Card>
             <div className="mb-2 flex items-center justify-between">
-              <CardTitle>Install snippet</CardTitle>
+              <CardTitle>Instalar código de rastreamento</CardTitle>
               <Button size="sm" variant="outline" onClick={copy}>
-                {copied ? 'Copied' : 'Copy'}
+                {copied ? 'Copiado' : 'Copiar'}
               </Button>
             </div>
             <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 text-xs">
@@ -85,18 +85,18 @@ export default function SiteInstallPage(): React.ReactElement {
 
           <Card>
             <CardTitle>Google Tag Manager</CardTitle>
-            <p className="mt-2 text-sm text-muted-foreground">{snippet.gtm.instructions}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Crie uma tag de HTML personalizado no Google Tag Manager, cole o código de rastreamento e configure o acionamento em todas as páginas.</p>
           </Card>
 
           <Card>
-            <CardTitle>CSP guidance</CardTitle>
+            <CardTitle>Orientações de segurança (CSP)</CardTitle>
             <pre className="mt-2 overflow-x-auto rounded bg-muted p-3 text-xs">
               {`script-src  'self' ${snippet.csp.scriptSrc};\nconnect-src 'self' ${snippet.csp.connectSrc.join(' ')};`}
             </pre>
           </Card>
         </div>
       ) : (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Carregando…</p>
       )}
 
       <div className="mt-4">

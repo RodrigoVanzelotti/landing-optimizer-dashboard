@@ -20,6 +20,12 @@ interface Suggestion {
   payload: { title?: string; detail?: string; selector?: string; proposedValue?: string };
 }
 
+const riskLabels: Record<string, string> = { low: 'baixo', medium: 'médio', high: 'alto' };
+const suggestionKindLabels: Record<string, string> = {
+  hypothesis: 'Hipótese', headline: 'Título', cta: 'Chamada para ação',
+  friction: 'Dificuldade de uso', section: 'Seção', score: 'Pontuação', plan: 'Plano',
+};
+
 export default function InsightsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
   const { siteId, loading: sitesLoading, error: sitesError } = useSites();
@@ -48,10 +54,10 @@ export default function InsightsPage(): React.ReactElement {
     setMsg(null);
     try {
       const r = await api.post<{ count: number; score: number }>(`/sites/${siteId}/ai/analyze`);
-      setMsg(`Generated ${r.count} suggestions · page score ${r.score}/100`);
+      setMsg(`Sugestões geradas: ${r.count} · pontuação da página: ${r.score}/100`);
       load(siteId);
     } catch (e) {
-      setMsg(`Analysis failed: ${(e as Error).message}`);
+      setMsg(`Não foi possível concluir a análise: ${(e as Error).message}`);
     } finally {
       setBusy(false);
     }
@@ -70,11 +76,11 @@ export default function InsightsPage(): React.ReactElement {
   return (
     <div>
       <PageHeader
-        title="AI insights"
+        title="Insights de IA"
         description="Publicação exige aprovação."
         action={editable ?
           <Button onClick={analyze} disabled={busy || !siteId}>
-            {busy ? 'Analyzing…' : 'Run analysis'}
+            {busy ? 'Analisando…' : 'Executar análise'}
           </Button> : undefined
         }
       />
@@ -85,31 +91,31 @@ export default function InsightsPage(): React.ReactElement {
         : !siteId ? <DataState title="Primeiro, conecte seu site" description="A análise precisa de um site cadastrado para gerar propostas de melhoria." href="/sites" action="Ir para sites" />
         : loading ? <DataState loading title="Consultando sugestões…" />
         : suggestions.length === 0 ? (
-        <DataState title="Suas próximas ideias vão aparecer aqui" description={editable ? 'Execute uma análise para buscar oportunidades. Se ainda não houver sugestões, confira a instalação do snippet e aguarde mais interações dos visitantes.' : 'Um editor ou administrador pode executar uma análise. As sugestões geradas ficarão disponíveis aqui para consulta.'} />
+        <DataState title="Suas próximas ideias vão aparecer aqui" description={editable ? 'Execute uma análise para buscar oportunidades. Se ainda não houver sugestões, confira a instalação do código de rastreamento e aguarde mais interações dos visitantes.' : 'Um editor ou administrador pode executar uma análise. As sugestões geradas ficarão disponíveis aqui para consulta.'} />
       ) : (
         <div className="grid gap-3">
           {suggestions.map((s) => (
             <Card key={s.id}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle>{s.payload.title ?? s.kind}</CardTitle>
+                  <CardTitle>{s.payload.title ?? suggestionKindLabels[s.kind] ?? 'Sugestão'}</CardTitle>
                   <p className="mt-1 text-sm">{s.payload.detail}</p>
                   {s.payload.proposedValue ? (
                     <p className="mt-2 text-sm">
-                      Proposed: <span className="font-medium">{s.payload.proposedValue}</span>
+                      Proposta: <span className="font-medium">{s.payload.proposedValue}</span>
                     </p>
                   ) : null}
                 </div>
                 <div className="flex flex-col items-end gap-2">
                   <Badge tone={s.riskLevel === 'high' ? 'red' : s.riskLevel === 'medium' ? 'amber' : 'green'}>
-                    {s.riskLevel} risk
+                    Risco {riskLabels[s.riskLevel] ?? 'não informado'}
                   </Badge>
                   {editable && s.payload.selector && s.payload.proposedValue && !s.experimentId ? (
                     <Button size="sm" variant="outline" onClick={() => materialize(s.id)}>
-                      Create experiment
+                      Criar experimento
                     </Button>
                   ) : s.experimentId ? (
-                    <span className="text-xs text-muted-foreground">materialized</span>
+                    <span className="text-xs text-muted-foreground">Experimento criado</span>
                   ) : null}
                 </div>
               </div>

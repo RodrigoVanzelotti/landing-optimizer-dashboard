@@ -25,8 +25,8 @@ function SettingsContent({ defaultTab }: { defaultTab: string }) {
   const selected = tabs.find(tab => tab.id === (params.get('tab') || defaultTab))?.id ?? tabs[0]?.id;
   const base = canViewRoute(user.role, '/settings') ? '/settings' : '/audit';
   return <div lang="pt-BR">
-    <PageHeader title="Configurações" description="Gerencie as pessoas, acompanhe as atividades e consulte a cobrança do seu workspace." />
-    <nav aria-label="Configurações do workspace" className="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-border">
+    <PageHeader title="Configurações" description="Gerencie as pessoas, acompanhe as atividades e consulte a cobrança do seu espaço de trabalho." />
+    <nav aria-label="Configurações do espaço de trabalho" className="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-border">
       {tabs.map(tab => <TabLink key={tab.id} href={`${base}?tab=${tab.id}`} aria-current={selected === tab.id ? 'page' : undefined} className={`inline-flex min-h-11 items-center border-b-2 px-1 py-3 text-sm font-medium ${selected === tab.id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{tab.title}</TabLink>)}
     </nav>
     {tabs.some(tab => tab.id === 'team') && <PersistentPanel active={selected === 'team'}><TeamSettings /></PersistentPanel>}

@@ -21,7 +21,7 @@ export default async function InvitePage({ searchParams }: {
           <Link href="/login" className="text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
             Landing<span className="text-primary">Optimizer</span>
           </Link>
-          <span className="text-sm text-muted-foreground">Um novo olhar para sua landing page.</span>
+          <span className="text-sm text-muted-foreground">Um novo olhar para sua página.</span>
         </header>
         {invitation.success ? (
           <div className="my-8 grid overflow-hidden rounded-2xl bg-card shadow-[0_20px_70px_-25px_rgba(15,23,42,0.18)] md:my-16 md:grid-cols-2">
@@ -42,7 +42,7 @@ export default async function InvitePage({ searchParams }: {
             </section>
             <section className="p-7 sm:p-12" aria-labelledby="registration-title">
               <h2 id="registration-title" className="text-2xl font-semibold tracking-tight">Vamos preparar seu acesso</h2>
-              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Você vai entrar no workspace que convidou você. Crie sua senha para acessar pela primeira vez.</p>
+              <p className="mt-3 text-sm leading-relaxed text-muted-foreground">Você vai entrar no espaço de trabalho que convidou você. Crie sua senha para acessar pela primeira vez.</p>
               <InvitationForm name={invitation.data.name} email={invitation.data.email} />
             </section>
           </div>

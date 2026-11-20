@@ -49,17 +49,17 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
   const captureHelp = <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
     <summary className="cursor-pointer text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Como fazer uma captura do site</summary>
     <ol className="mt-4 list-decimal space-y-3 pl-5 text-sm leading-relaxed text-muted-foreground">
-      <li>Com o snippet instalado, abra a página desejada com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Para outra página, mantenha o caminho dela. Se já houver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
-      <li>Aguarde o download de <code>landing-optimizer-captura.json</code>. Esse arquivo já contém a imagem da página e as posições dos elementos; não é necessário tirar um print separado. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
-      <li>Como editor ou administrador, arraste apenas o JSON até a área abaixo ou clique para selecioná-lo. Confira o nome e clique em <strong>Enviar captura</strong>. Gere uma nova captura sempre que o layout mudar.</li>
+      <li>Com o código de rastreamento instalado, abra a página desejada com <code className="break-all rounded bg-muted px-1">https://{domain ?? 'seu-dominio.com'}/?lo_capture=1</code>. Para outra página, mantenha o caminho dela. Se já houver parâmetros, acrescente <code>&amp;lo_capture=1</code>.</li>
+      <li>Aguarde o arquivo <code>landing-optimizer-captura.json</code>. Esse arquivo já contém a imagem da página e as posições dos elementos; não é necessário tirar uma captura de tela separada. Se aparecer uma falha, siga a orientação exibida e tente novamente.</li>
+      <li>Como editor ou administrador, arraste apenas o JSON até a área abaixo ou clique para selecioná-lo. Confira o nome e clique em <strong>Enviar captura</strong>. Gere uma nova captura sempre que a disposição dos elementos mudar.</li>
     </ol>
     <details className="mt-4 text-sm leading-relaxed text-muted-foreground">
       <summary className="cursor-pointer font-medium text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Substituir a imagem ou importar um PDF (opcional)</summary>
-      <p className="mt-3">Se precisar substituir a imagem do JSON, faça um screenshot da mesma página, sem mudar a largura ou o conteúdo. Abra o DevTools com <kbd>F12</kbd> (Mac: <kbd>Cmd+Option+I</kbd>), desative a simulação de dispositivos e recarregue com <code>lo_capture=1</code>. Aguarde o novo JSON e o aviso desaparecer. Clique dentro do DevTools, abra o menu de três pontos dele → <strong>Run command</strong> e procure <code>Capture full size screenshot</code>. Com o foco no DevTools, <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>Cmd+Shift+P</kbd>) abre esse mesmo menu.</p>
+      <p className="mt-3">Se precisar substituir a imagem do JSON, faça uma captura de tela da mesma página, sem mudar a largura ou o conteúdo. Abra as ferramentas de desenvolvedor com <kbd>F12</kbd> (Mac: <kbd>Cmd+Option+I</kbd>), desative a simulação de dispositivos e recarregue com <code>lo_capture=1</code>. Aguarde o novo JSON e o aviso desaparecer. Clique dentro das ferramentas de desenvolvedor, abra o menu de três pontos delas → <strong>Run command</strong> e procure <code>Capture full size screenshot</code>. Com o foco nas ferramentas de desenvolvedor, <kbd>Ctrl+Shift+P</kbd> (Mac: <kbd>Cmd+Shift+P</kbd>) abre esse mesmo menu.</p>
       <p className="mt-3">Para PDF, use o menu do navegador → <strong>Imprimir</strong> → <strong>Salvar como PDF</strong>. A impressão pode reorganizar o site; o PDF é exibido como referência, sem marcações. As métricas continuam na tabela.</p>
-      <p className="mt-3">Adicione o screenshot ou PDF junto do JSON. A imagem separada substitui a que já está no arquivo de captura.</p>
+      <p className="mt-3">Adicione a captura de tela ou PDF junto do JSON. A imagem separada substitui a que já está no arquivo de captura.</p>
     </details>
-    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">O JSON remove valores de formulários e elementos com data-lo-ignore. Screenshots manuais e PDFs não passam por essa proteção: capture uma página sem dados pessoais ou conteúdo privado. Para um screenshot, use a mesma página e largura nos dois arquivos; apenas a proporção da imagem pode ser conferida automaticamente.</p>
+    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">O JSON remove valores de formulários e elementos com data-lo-ignore. Capturas de tela manuais e PDFs não passam por essa proteção: capture uma página sem dados pessoais ou conteúdo privado. Para uma captura de tela, use a mesma página e largura nos dois arquivos; apenas a proporção da imagem pode ser conferida automaticamente.</p>
   </details>;
 
   const uploadControl = canEdit(user.role) ? <details className="my-5 rounded-lg border border-border p-4" open={!loading && !snapshots.length}>
@@ -92,7 +92,7 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
         <Button type="button" variant="ghost" className="h-11 shrink-0" disabled={uploading} aria-label={`Remover ${file.name}`} onClick={() => { remove(); setUploadMessage(''); }}>Remover</Button>
       </li>)}
     </ul>}
-    {screenshotFile && (screenshotFile.type === 'application/pdf' || screenshotFile.name.toLowerCase().endsWith('.pdf')) && <p className="text-sm leading-relaxed text-muted-foreground">O PDF será exibido como referência, sem marcações sobre a página. A impressão pode alterar o layout; consulte as métricas na tabela. Para marcações alinhadas, use um screenshot.</p>}
+    {screenshotFile && (screenshotFile.type === 'application/pdf' || screenshotFile.name.toLowerCase().endsWith('.pdf')) && <p className="text-sm leading-relaxed text-muted-foreground">O PDF será exibido como referência, sem marcações sobre a página. A impressão pode alterar a disposição dos elementos; consulte as métricas na tabela. Para marcações alinhadas, use uma captura de tela.</p>}
     {!captureFile && screenshotFile && <p className="text-sm text-muted-foreground">Adicione também o JSON baixado pelo site para enviar a captura.</p>}
     <Button type="submit" className="h-11" disabled={!captureFile || uploading}>{uploading ? 'Enviando…' : 'Enviar captura'}</Button>
     {uploadMessage && <p role={uploadError ? 'alert' : 'status'} className="text-sm">{uploadMessage}</p>}
@@ -130,7 +130,7 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
 
   if (error) return <div>{captureHelp}{uploadControl}<DataState error title="Não foi possível carregar o mapa de calor" description="Confira sua conexão e tente novamente. Seus dados continuam salvos." onRetry={() => setAttempt(n => n + 1)} /></div>;
   if (!loading && !snapshots.length) return <div>
-    <DataState title="Prepare a primeira captura do site" description="O mapa precisa de uma imagem da página para posicionar as interações. Após instalar o snippet, siga os passos abaixo." />
+    <DataState title="Prepare a primeira captura do site" description="O mapa precisa de uma imagem da página para posicionar as interações. Após instalar o código de rastreamento, siga os passos abaixo." />
     {captureHelp}
     {uploadControl}
     <Button variant="outline" className="mt-4 h-11" onClick={() => setAttempt(n => n + 1)}>Já capturei, verificar novamente</Button>

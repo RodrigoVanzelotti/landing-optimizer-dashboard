@@ -16,7 +16,7 @@ export function ComingSoon({
     <div>
       <PageHeader title={title} description={description} />
       <Card>
-        <CardTitle>Planned for a later milestone</CardTitle>
+        <CardTitle>Previsto para uma próxima etapa</CardTitle>
         <p className="mt-2 text-sm text-muted-foreground">{note}</p>
       </Card>
     </div>

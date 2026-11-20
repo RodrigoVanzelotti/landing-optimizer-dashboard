@@ -9,7 +9,8 @@ import { api, type ConversionGoal } from '@/lib/api';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DataState } from '@/components/data-state';
-import { experimentStatusLabels } from '@/lib/experiments';
+import { experimentStatusLabels, experimentTypeLabels, changeOpLabels } from '@/lib/experiments';
+import { goalKindLabels } from '@/lib/goals';
 
 
 interface Change {
@@ -90,9 +91,9 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
     try {
       const body =
         action === 'reject'
-          ? { reason: 'Rejected from review' }
+          ? { reason: 'Rejeitado na revisão' }
           : action === 'approve'
-            ? { reason: 'Approved from review', checklist: { privacy: true, brand: true } }
+            ? { reason: 'Aprovado na revisão', checklist: { privacy: true, brand: true } }
             : undefined;
       await api.post(`/experiments/${id}/${action}`, body);
       onChanged();
@@ -142,7 +143,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
         <dl className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
           <div>
             <dt className="text-muted-foreground">Tipo</dt>
-            <dd>{exp.type}</dd>
+            <dd>{experimentTypeLabels[exp.type] ?? 'Outro tipo'}</dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Pontuação de risco</dt>
@@ -168,7 +169,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
               <select id={goalInputId} name="primaryGoalId" key={exp.primaryGoalId ?? 'all'} defaultValue={exp.primaryGoalId ?? ''}
                 disabled={busy || goals === null} className="min-h-11 w-full min-w-0 rounded-md border border-border bg-transparent px-3 py-2 text-sm">
                 <option value="">Todas as metas de conversão</option>
-                {(goals ?? []).map(goal => <option key={goal.id} value={goal.id}>{goal.name} ({goal.kind})</option>)}
+                {(goals ?? []).map(goal => <option key={goal.id} value={goal.id}>{goal.name} ({goalKindLabels[goal.kind]})</option>)}
               </select>
             </div>
             <Button type="submit" disabled={busy || goals === null}>Salvar meta principal</Button>
@@ -194,7 +195,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
                 {v.changes.map((c) => (
                   <li key={c.id} className="rounded border border-border p-3 text-sm">
                     <p className="break-all font-mono text-xs text-muted-foreground">
-                      {c.op} · {c.selector}
+                      {changeOpLabels[c.op] ?? 'Alteração'} · {c.selector}
                     </p>
                     {c.originalValue ? (
                       <p className="mt-1 break-words line-through opacity-60">{c.originalValue}</p>

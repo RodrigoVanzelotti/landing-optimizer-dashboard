@@ -18,7 +18,7 @@ export const auditActionLabels: Record<string, string> = {
   'ai.analyzed': 'Análise de IA realizada', 'ai.materialized': 'Sugestão de IA convertida em experimento',
   'snapshot.created': 'Captura de página registrada', 'snapshot.deleted': 'Captura de página excluída',
   'snapshot.pruned': 'Capturas removidas pela retenção',
-  'tenant.created': 'Workspace cadastrado', 'tenant.archived': 'Workspace arquivado', 'tenant.restored': 'Workspace reativado',
+  'tenant.created': 'Espaço de trabalho cadastrado', 'tenant.archived': 'Espaço de trabalho arquivado', 'tenant.restored': 'Espaço de trabalho reativado',
   'auth.login': 'Entrada na conta', 'auth.logout': 'Saída da conta',
   'auth.password_reset_requested': 'Redefinição de senha solicitada', 'auth.password_changed': 'Senha alterada',
 };
@@ -26,5 +26,5 @@ export const auditActionLabels: Record<string, string> = {
 export const auditTargetLabels: Record<string, string> = {
   user: 'Conta', user_membership: 'Acesso à equipe', team_invitation: 'Convite', site: 'Site',
   site_origin: 'Origem', conversion_goal: 'Meta', brand_guardrail: 'Diretrizes da marca',
-  experiment: 'Experimento', page_snapshot: 'Captura', tenant: 'Workspace',
+  experiment: 'Experimento', page_snapshot: 'Captura', tenant: 'Espaço de trabalho',
 };

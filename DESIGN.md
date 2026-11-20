@@ -20,6 +20,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Hierarchy and spacing
 
+- Write all interface copy in Brazilian Portuguese, including headings, controls,
+  placeholders, feedback and accessible labels. Always use **IA**, never **AI**
+  or the expanded name. Keep established keywords such as **insights**, product
+  names and technical identifiers unchanged; translate API enum values for display.
+
 - Use `PageHeader` for the page's single h1, optional description and primary action.
   It owns the 32px gap before content. Actions stack below the title on mobile and
   sit alongside it from `sm` upward. They must remain usable with long titles.

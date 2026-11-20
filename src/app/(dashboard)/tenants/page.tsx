@@ -109,7 +109,7 @@ export default function TenantsPage(): React.ReactElement {
       {notice && <p role="status" className="mb-5 text-sm text-green-800">{notice}</p>}
       {showCreate && <section className="mb-8 rounded-xl bg-muted/50 p-5 sm:p-6" aria-labelledby="new-tenant-title">
         <h2 id="new-tenant-title" className="text-xl font-semibold">Convide um novo cliente</h2>
-        <p className="mt-2 text-sm leading-relaxed text-slate-600">O workspace será criado agora. O primeiro administrador escolhe a própria senha pelo convite, válido por 7 dias.</p>
+        <p className="mt-2 text-sm leading-relaxed text-slate-600">O espaço de trabalho será criado agora. O primeiro administrador escolhe a própria senha pelo convite, válido por 7 dias.</p>
         <form onSubmit={create} className="mt-5 grid gap-4 sm:grid-cols-2">
           <div><label htmlFor="tenant-name" className="mb-2 block text-sm font-medium">Nome do cliente</label><input id="tenant-name" name="tenantName" maxLength={120} required disabled={busy} className={inputClass} /></div>
           <div><label htmlFor="admin-name" className="mb-2 block text-sm font-medium">Nome do administrador</label><input id="admin-name" name="name" maxLength={120} required disabled={busy} className={inputClass} /></div>
@@ -138,7 +138,7 @@ export default function TenantsPage(): React.ReactElement {
             <div className="border-b border-border pb-5"><h2 id="tenant-title" className="break-words text-2xl font-semibold tracking-tight">{detail.name}</h2><p className="mt-2 text-sm text-muted-foreground">{detail.archivedAt ? 'Arquivado — acesso bloqueado' : 'Cliente ativo'}</p></div>
             <dl className="my-5 grid gap-4 text-sm sm:grid-cols-2">
               <div><dt className="text-muted-foreground">Identificador</dt><dd className="mt-1 break-all">{detail.id}</dd></div>
-              <div><dt className="text-muted-foreground">Slug</dt><dd className="mt-1 break-all">{detail.slug}</dd></div>
+              <div><dt className="text-muted-foreground">Identificador na URL</dt><dd className="mt-1 break-all">{detail.slug}</dd></div>
               <div><dt className="text-muted-foreground">Plano / região dos dados</dt><dd className="mt-1">{detail.plan} / {detail.dataRegion}</dd></div>
               <div><dt className="text-muted-foreground">Criado em</dt><dd className="mt-1">{new Date(detail.createdAt).toLocaleDateString('pt-BR')}</dd></div>
             </dl>
@@ -153,7 +153,7 @@ export default function TenantsPage(): React.ReactElement {
             {!detail.sites.length ? <p className="mt-3 text-sm text-muted-foreground">Nenhum site cadastrado.</p> : <ul className="mt-3 space-y-3">{detail.sites.map((site) => <li key={site.id} className="text-sm"><p className="break-words font-medium">{site.name}</p><p className="mt-1 break-all text-muted-foreground">{site.primaryDomain} · {site.status === 'active' ? 'Ativo' : 'Pausado'}</p></li>)}</ul>}
             <div className="mt-10 border-t border-border pt-6">
               <h3 className="text-lg font-semibold">{detail.archivedAt ? 'Reativar cliente' : 'Arquivar cliente'}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">O arquivamento preserva todos os dados e bloqueia login, convites e ingestão de novos eventos. Você pode reativar o cliente depois.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">O arquivamento preserva todos os dados e bloqueia o acesso, convites e ingestão de novos eventos. Você pode reativar o cliente depois.</p>
               {detail.archivedAt ? <Button variant="outline" disabled={busy} className="mt-4" onClick={() => { void changeStatus(false); }}>Reativar cliente</Button> : ownTenant ? <p className="mt-4 text-sm text-muted-foreground">Para preservar seu acesso, não é possível arquivar um cliente ao qual sua conta pertence.</p> : <form onSubmit={(event) => { event.preventDefault(); void changeStatus(true); }} className="mt-4 space-y-3">
                 <label htmlFor="archive-confirmation" className="block text-sm font-medium">Digite {detail.name} para confirmar</label><input id="archive-confirmation" value={confirmation} onChange={(event) => setConfirmation(event.target.value)} disabled={busy} autoComplete="off" className={inputClass} />
                 <Button variant="destructive" disabled={busy || confirmation !== detail.name}>Arquivar e bloquear acessos</Button>

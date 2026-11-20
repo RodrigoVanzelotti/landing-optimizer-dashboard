@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { ExperimentDetail } from '@/components/experiment-detail';
-import { experimentStatusLabels as labels } from '@/lib/experiments';
+import { experimentStatusLabels as labels, experimentTypeLabels } from '@/lib/experiments';
 import { useSites } from '@/lib/use-sites';
 import { PersistentPanel, TabLink } from '@/components/persistent-tabs';
 
@@ -54,7 +54,7 @@ function ExperimentsContent() {
       return <li key={exp.id} className="rounded-lg border border-border">
         <h2><TabLink href={href(tab, open ? null : exp.id)} role="button" aria-expanded={open} aria-controls={panelId} onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }}
           className="flex min-h-11 flex-col gap-3 rounded-lg p-5 text-left hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary sm:flex-row sm:items-center sm:justify-between">
-          <span className="min-w-0"><span className="block break-words font-medium">{exp.name}</span><span className="mt-1 block text-sm font-normal text-muted-foreground">{exp.type} · Risco {exp.riskScore}/100{tab === 'review' ? ' · Conferir proposta e decidir' : ` · ${Math.round(exp.allocation * 100)}% do tráfego`}</span></span>
+          <span className="min-w-0"><span className="block break-words font-medium">{exp.name}</span><span className="mt-1 block text-sm font-normal text-muted-foreground">{experimentTypeLabels[exp.type] ?? 'Outro tipo'} · Risco {exp.riskScore}/100{tab === 'review' ? ' · Conferir proposta e decidir' : ` · ${Math.round(exp.allocation * 100)}% do tráfego`}</span></span>
           <span className="flex shrink-0 items-center gap-3 text-sm font-normal"><Badge>{labels[exp.status] ?? exp.status}</Badge><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className={`h-5 w-5 ${open ? 'rotate-180' : ''}`}><path d="m6 9 6 6 6-6" /></svg></span>
         </TabLink></h2>
         <div id={panelId}><PersistentPanel active={open}><section aria-label={`Detalhes de ${exp.name}`} className="border-t border-border p-5"><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel></div>

@@ -44,7 +44,7 @@ export default function ResultsPage() {
       : !experiments ? <DataState loading title="Carregando experimentos…" />
       : !experiments.length ? <DataState title="Nenhum experimento" description="Crie um teste para comparar variantes." href="/experiments" action="Ver experimentos" />
       : !results ? <DataState loading title="Carregando resultados…" />
-      : !results.some(row => row.exposures > 0) ? <DataState title="Sem exposições" description="Confira a execução do teste e a instalação do snippet." href={`/experiments?review=${encodeURIComponent(selected)}`} action="Conferir experimento" />
+      : !results.some(row => row.exposures > 0) ? <DataState title="Sem exposições" description="Confira a execução do teste e a instalação do código de rastreamento." href={`/experiments?review=${encodeURIComponent(selected)}`} action="Conferir experimento" />
       : <>
         <div className="mb-6 grid items-start gap-6 lg:grid-cols-2">
           <Card className="shadow-none"><BarChart title="Taxa de conversão" description="Conversões / exposições" formatValue={formatPct} reference={control && control.exposures > 0 ? { value: control.conversionRate, label: 'Controle' } : undefined} rows={ordered.map(row => ({
@@ -58,11 +58,11 @@ export default function ResultsPage() {
           <h2 className="mb-4 text-lg font-semibold">Evidência estatística</h2>
           <div role="region" aria-label="Evidência por variante" tabIndex={0} className="overflow-x-auto focus-visible:outline-primary"><table className="w-full min-w-[560px] text-left text-sm tabular-nums"><thead className="border-b border-border text-muted-foreground"><tr>{['Variante', 'Efeito relativo', 'p-valor', 'Evidência'].map(title => <th key={title} scope="col" className="px-3 py-3 font-medium">{title}</th>)}</tr></thead><tbody className="divide-y divide-border">{ordered.map(row => <tr key={row.variantId}>
             <th scope="row" title={row.variantId} className="px-3 py-4 font-medium">{label(row)}</th>
-            <td className="whitespace-nowrap px-3 py-4">{row.lift === null ? 'N/A' : `${row.lift > 0 ? '+' : ''}${formatPct(row.lift)}`}</td>
-            <td className="px-3 py-4">{row.pValue === null ? 'N/A' : row.pValue < .001 ? '<0,001' : row.pValue.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
+            <td className="whitespace-nowrap px-3 py-4">{row.lift === null ? 'N/D' : `${row.lift > 0 ? '+' : ''}${formatPct(row.lift)}`}</td>
+            <td className="px-3 py-4">{row.pValue === null ? 'N/D' : row.pValue < .001 ? '<0,001' : row.pValue.toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}</td>
             <td className="px-3 py-4"><Badge tone={row.isControl ? 'default' : row.significant && control ? (row.conversionRate > control.conversionRate ? 'green' : 'red') : 'default'}>{row.isControl ? 'Referência' : row.pValue === null ? 'Dados insuficientes' : row.significant ? 'Diferença significativa' : 'Sem diferença significativa'}</Badge></td>
           </tr>)}</tbody></table></div>
-          <details className="mt-4 text-xs leading-relaxed text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Definições</summary><p>Significância informada pela API contra o controle; pode indicar melhora ou piora. N/A = comparação indisponível. Taxas observadas isoladamente não definem uma vencedora.</p></details>
+          <details className="mt-4 text-xs leading-relaxed text-muted-foreground"><summary className="min-h-11 cursor-pointer py-3">Definições</summary><p>Significância informada pela API contra o controle; pode indicar melhora ou piora. N/D = comparação indisponível. Taxas observadas isoladamente não definem uma vencedora.</p></details>
         </Card>
       </>}
   </div>;

@@ -44,36 +44,36 @@ export default function LoginPage(): React.ReactElement {
           <Link href="/login" className="text-lg font-semibold tracking-tight focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
             Landing<span className="text-primary">Optimizer</span>
           </Link>
-          <span lang="pt-BR" className="text-sm text-muted-foreground">Um novo olhar para sua landing page.</span>
+          <span lang="pt-BR" className="text-sm text-muted-foreground">Um novo olhar para sua página.</span>
         </header>
         <div className="flex flex-1 items-center justify-center py-12 sm:py-16">
           <section aria-labelledby="login-title" className="w-full max-w-md rounded-2xl bg-card p-7 shadow-[0_20px_70px_-25px_rgba(15,23,42,0.18)] sm:p-12">
-            <h1 id="login-title" className="text-2xl font-semibold tracking-tight">Sign in</h1>
+            <h1 id="login-title" className="text-2xl font-semibold tracking-tight">Entrar</h1>
             {logoutIncomplete && <p role="alert" className="mt-4 text-sm leading-relaxed text-muted-foreground">A sessão local foi encerrada, mas não foi possível confirmar a saída no servidor. Em um computador compartilhado, feche o navegador e limpe os dados deste site antes de sair.</p>}
             <form onSubmit={submit} aria-busy={busy} className="mt-6 space-y-5">
               <div>
-                <label htmlFor="login-email" className="mb-2 block text-sm font-medium">Email</label>
+                <label htmlFor="login-email" className="mb-2 block text-sm font-medium">E-mail</label>
                 <input
                   id="login-email"
                   autoComplete="email"
                   disabled={busy}
                   className={inputClass}
                   type="email"
-                  placeholder="Email"
+                  placeholder="E-mail"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
               </div>
               <div>
-                <label htmlFor="login-password" className="mb-2 block text-sm font-medium">Password</label>
+                <label htmlFor="login-password" className="mb-2 block text-sm font-medium">Senha</label>
                 <input
                   id="login-password"
                   autoComplete="current-password"
                   disabled={busy}
                   className={inputClass}
                   type="password"
-                  placeholder="Password"
+                  placeholder="Senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
@@ -94,7 +94,7 @@ export default function LoginPage(): React.ReactElement {
               </fieldset>
               {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
               <Button type="submit" className="h-11 w-full" disabled={busy}>
-                {busy ? 'Signing in…' : 'Sign in'}
+                {busy ? 'Entrando…' : 'Entrar'}
               </Button>
             </form>
           </section>

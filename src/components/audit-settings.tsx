@@ -86,7 +86,7 @@ export function AuditSettings() {
 
   return <section aria-labelledby="audit-heading">
     <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div><h2 id="audit-heading" className="text-xl font-semibold">Registro de atividades</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Todas as atividades deste workspace, 10 por página. Use os filtros para refinar a consulta ou baixe todos os registros da consulta em CSV.</p></div>
+      <div><h2 id="audit-heading" className="text-xl font-semibold">Registro de atividades</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Todas as atividades deste espaço de trabalho, 10 por página. Use os filtros para refinar a consulta ou baixe todos os registros da consulta em CSV.</p></div>
       <Button variant="outline" className="h-11 shrink-0" disabled={exporting || !result} onClick={() => { void exportCsv(); }}>{exporting ? 'Exportando…' : 'Baixar CSV'}</Button>
     </div>
     {exportError && <p role="alert" className="mb-4 text-sm">{exportError}</p>}

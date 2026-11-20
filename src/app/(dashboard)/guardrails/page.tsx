@@ -66,7 +66,7 @@ export default function GuardrailsPage(): React.ReactElement {
     if (maxLength.trim()) {
       const n = Number(maxLength);
       if (!Number.isInteger(n) || n <= 0) {
-        setState({ kind: 'error', message: 'Max length must be a positive whole number.' });
+        setState({ kind: 'error', message: 'O limite de caracteres deve ser um número inteiro positivo.' });
         return;
       }
       rules.maxLength = n;
@@ -75,7 +75,7 @@ export default function GuardrailsPage(): React.ReactElement {
     setState({ kind: 'saving' });
     try {
       await api.put<GuardrailView>(`/sites/${siteId}/guardrails`, { rules });
-      setState({ kind: 'saved', message: 'Guardrails saved.' });
+      setState({ kind: 'saved', message: 'Diretrizes salvas.' });
     } catch (e) {
       setState({ kind: 'error', message: (e as Error).message });
     }
@@ -84,7 +84,7 @@ export default function GuardrailsPage(): React.ReactElement {
   if (loading || sitesError || sites.length === 0) {
     return (
       <div>
-        <PageHeader title="Brand guardrails" />
+        <PageHeader title="Diretrizes da marca" />
         {sitesError ? <DataState error title="Não foi possível carregar seus sites" description="Confira sua conexão e recarregue a página para tentar novamente." onRetry={() => window.location.reload()} /> : loading ? <DataState loading title="Carregando diretrizes…" /> : <DataState title="As diretrizes precisam de um site" description="Depois de cadastrar um site, você poderá definir o tom de voz e os limites para as sugestões de IA." href="/sites" action="Ir para sites" />}
       </div>
     );
@@ -93,11 +93,11 @@ export default function GuardrailsPage(): React.ReactElement {
   return (
     <div>
       <PageHeader
-        title="Brand guardrails"
+        title="Diretrizes da marca"
 
         action={editable ?
           <Button onClick={save} disabled={!siteId || !ready || state.kind === 'saving'}>
-            {state.kind === 'saving' ? 'Saving…' : 'Save guardrails'}
+            {state.kind === 'saving' ? 'Salvando…' : 'Salvar diretrizes'}
           </Button> : undefined
         }
       />
@@ -114,10 +114,10 @@ export default function GuardrailsPage(): React.ReactElement {
 
       {ready && <div className="grid gap-4 md:max-w-2xl">
         <Card>
-          <CardTitle>Tone</CardTitle>
+          <CardTitle>Tom de voz</CardTitle>
           <input
             className={`${inputClass} mt-2`}
-            placeholder="e.g. confident, concise, friendly"
+            placeholder="Ex.: confiante, conciso, amigável"
             readOnly={!editable}
             value={tone}
             onChange={(e) => setTone(e.target.value)}
@@ -126,13 +126,13 @@ export default function GuardrailsPage(): React.ReactElement {
         </Card>
 
         <Card>
-          <CardTitle>Banned words</CardTitle>
+          <CardTitle>Palavras proibidas</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Uma por linha ou separadas por vírgula.
           </p>
           <textarea
             className={`${inputClass} mt-2 h-28 resize-y`}
-            placeholder={'cheap\nguaranteed\nfree'}
+            placeholder={'barato\ngarantido\ngrátis'}
             readOnly={!editable}
             value={bannedWords}
             onChange={(e) => setBannedWords(e.target.value)}
@@ -140,14 +140,14 @@ export default function GuardrailsPage(): React.ReactElement {
         </Card>
 
         <Card>
-          <CardTitle>Max copy length</CardTitle>
+          <CardTitle>Limite de caracteres do texto</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Caracteres. Em branco = sem limite.
           </p>
           <input
             className={`${inputClass} mt-2`}
             inputMode="numeric"
-            placeholder="e.g. 80"
+            placeholder="Ex.: 80"
             readOnly={!editable}
             value={maxLength}
             onChange={(e) => setMaxLength(e.target.value)}
@@ -155,13 +155,13 @@ export default function GuardrailsPage(): React.ReactElement {
         </Card>
 
         <Card>
-          <CardTitle>Must-keep claims</CardTitle>
+          <CardTitle>Afirmações que devem ser mantidas</CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
             Uma por linha. Orientação para geração.
           </p>
           <textarea
             className={`${inputClass} mt-2 h-24 resize-y`}
-            placeholder={'SOC 2 Type II certified\n30-day money-back guarantee'}
+            placeholder={'Certificação SOC 2 Tipo II\nGarantia de reembolso em 30 dias'}
             readOnly={!editable}
             value={mustKeepClaims}
             onChange={(e) => setMustKeepClaims(e.target.value)}

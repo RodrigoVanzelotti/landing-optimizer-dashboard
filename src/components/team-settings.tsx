@@ -66,7 +66,7 @@ export function TeamSettings(): React.ReactElement {
     await mutate(async () => {
       await api.post<Member>('/team/reactivations', reactivation);
       setReactivation(null); inviteForm.current?.reset(); setRole('viewer');
-    }, 'Acesso reativado neste workspace. A pessoa pode entrar com as credenciais existentes.');
+    }, 'Acesso reativado neste espaço de trabalho. A pessoa pode entrar com as credenciais existentes.');
   }
 
   function cancelReactivation(): void {
@@ -117,7 +117,7 @@ export function TeamSettings(): React.ReactElement {
             </form>
             {reactivation && <section className="mt-6 border-t border-border pt-5" aria-labelledby="reactivate-title">
               <h3 id="reactivate-title" ref={reactivationTitle} tabIndex={-1} className="text-lg font-semibold focus:outline-none">Esta conta já existe. Reativar acesso?</h3>
-              <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">A conta de <strong className="break-all text-foreground">{reactivation.email}</strong> foi preservada. Deseja reativar o acesso a este workspace como <strong className="text-foreground">{roleLabels[reactivation.role]}</strong>? O nome, a senha e o histórico existentes serão mantidos.</p>
+              <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">A conta de <strong className="break-all text-foreground">{reactivation.email}</strong> foi preservada. Deseja reativar o acesso a este espaço de trabalho como <strong className="text-foreground">{roleLabels[reactivation.role]}</strong>? O nome, a senha e o histórico existentes serão mantidos.</p>
               <div className="mt-4 flex flex-wrap gap-3"><Button type="button" className="h-11" disabled={busy || full || (reactivation.role === 'admin' && adminsFull)} onClick={() => { void reactivate(); }}>{busy ? 'Reativando…' : 'Reativar conta'}</Button><Button type="button" variant="outline" className="h-11" disabled={busy} onClick={cancelReactivation}>Cancelar</Button></div>
             </section>}
             {full && <p className="mt-3 text-sm text-amber-900">Todas as vagas estão ocupadas ou reservadas. Revogue um convite pendente para liberar uma vaga.</p>}
@@ -131,7 +131,7 @@ export function TeamSettings(): React.ReactElement {
           </section>
         ) : <p className="mb-8 text-sm text-muted-foreground">Você pode consultar esta área. Apenas administradores podem convidar pessoas e alterar perfis.</p>}
         <section aria-labelledby="members-title">
-          <h2 id="members-title" className="text-xl font-semibold">Pessoas no workspace</h2>
+          <h2 id="members-title" className="text-xl font-semibold">Pessoas no espaço de trabalho</h2>
           <ul className="mt-4 divide-y divide-border border-y border-border">
             {team.members.map((member) => <li key={member.id} className="py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

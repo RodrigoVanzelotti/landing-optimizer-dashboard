@@ -47,17 +47,17 @@ export default function SitesPage(): React.ReactElement {
       {editable && <Card className="mb-6">
         <form onSubmit={createSite} className="flex flex-wrap items-end gap-3">
           <div className="flex flex-col">
-            <label className="mb-1 text-xs text-muted-foreground">Name</label>
+            <label className="mb-1 text-xs text-muted-foreground">Nome</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               className="h-9 rounded-md border border-border px-3 text-sm"
-              placeholder="Marketing site"
+              placeholder="Site institucional"
             />
           </div>
           <div className="flex flex-col">
-            <label htmlFor="site-domain" className="mb-1 text-xs text-muted-foreground">Primary domain</label>
+            <label htmlFor="site-domain" className="mb-1 text-xs text-muted-foreground">Domínio principal</label>
             <input
               id="site-domain"
               aria-describedby="site-domain-help"
@@ -70,7 +70,7 @@ export default function SitesPage(): React.ReactElement {
             <p id="site-domain-help" className="mt-1 text-xs text-muted-foreground">Aceita domínio ou URL completa; salvamos apenas o domínio e a porta, se houver.</p>
           </div>
           <Button type="submit" disabled={submitting}>
-            {submitting ? 'Creating…' : 'Create site'}
+            {submitting ? 'Criando…' : 'Criar site'}
           </Button>
         </form>
         {formError ? <p role="alert" className="mt-2 text-sm text-red-600">{formError}</p> : null}
@@ -79,9 +79,9 @@ export default function SitesPage(): React.ReactElement {
       {error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : loading ? (
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">Carregando…</p>
       ) : sites.length === 0 ? (
-        <DataState title="Seu primeiro site começa por aqui" description={editable ? 'Cadastre o nome e o domínio no formulário acima. Depois, você receberá as instruções para instalar o snippet e começar a coletar dados.' : 'Peça a um editor ou administrador para cadastrar um site. Assim que ele estiver conectado, você poderá acompanhar seus dados.'} />
+        <DataState title="Seu primeiro site começa por aqui" description={editable ? 'Cadastre o nome e o domínio no formulário acima. Depois, você receberá as instruções para instalar o código de rastreamento e começar a coletar dados.' : 'Peça a um editor ou administrador para cadastrar um site. Assim que ele estiver conectado, você poderá acompanhar seus dados.'} />
       ) : (
         <div className="grid gap-3">
           {sites.map((site) => (
@@ -89,7 +89,7 @@ export default function SitesPage(): React.ReactElement {
               <Link href={`/sites/${site.id}`} onClick={() => selectSite(site.id)} className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <p className="break-words font-medium">{site.name}</p>
                 <p className="break-all text-sm text-muted-foreground">{site.primaryDomain}</p>
-                <p className="mt-1 text-xs text-muted-foreground">config v{site.configVersion} · {site.status}{favoriteSiteId === site.id ? ' · Favorito — abre por padrão' : ''}</p>
+                <p className="mt-1 text-xs text-muted-foreground">configuração v{site.configVersion} · {site.status === 'active' ? 'Ativo' : 'Pausado'}{favoriteSiteId === site.id ? ' · Favorito — abre por padrão' : ''}</p>
               </Link>
               <Button type="button" variant="ghost" className="h-11 w-11 shrink-0 p-0" disabled={favoriteBusy} aria-pressed={favoriteSiteId === site.id}
                 aria-label={`${favoriteSiteId === site.id ? 'Remover favorito' : 'Favoritar'}: ${site.name}`}

@@ -43,7 +43,7 @@ function OverviewContent() {
         action={<Button variant="outline" className="h-11" onClick={retry} disabled={!siteId}>Atualizar dados</Button>} />
       {error ? <DataState error title="Não foi possível carregar seus sites" description="Confira sua conexão e tente novamente." onRetry={() => window.location.reload()} />
         : loading ? <DataState loading title="Carregando…" />
-        : !sites.length ? <DataState title="Nenhum site cadastrado" description="Cadastre um site e instale o snippet." href="/sites" action="Ir para sites" />
+        : !sites.length ? <DataState title="Nenhum site cadastrado" description="Cadastre um site e instale o código de rastreamento." href="/sites" action="Ir para sites" />
         : <>
           <nav aria-label="Nesta visão geral" className="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-border">
             {[['data', 'Dados e indicadores'], ['experience', 'Experiência do usuário']].map(([id, label]) => <TabLink key={id} href={`/overview?tab=${id}`} aria-current={tab === id ? 'page' : undefined} className={`inline-flex min-h-11 items-center border-b-2 px-1 py-3 text-sm font-medium ${tab === id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</TabLink>)}
