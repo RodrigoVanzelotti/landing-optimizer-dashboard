@@ -2,11 +2,12 @@
 
 ## Consulta
 
-O registro não carrega eventos ao abrir a aba. Clique em **Filtrar atividades**,
-escolha os filtros e depois em **Consultar atividades**. A API retorna até 25
-registros por página e um cursor para a próxima; não transfere o histórico inteiro.
+O registro carrega todo o histórico automaticamente ao abrir a aba, com **10
+registros por página** e um cursor para a próxima. Os filtros são opcionais e
+ficam sempre visíveis. **Consultar atividades** aplica os campos preenchidos;
+**Limpar filtros** restaura todo o histórico e a primeira página.
 
-- Períodos: **Última semana**, **Últimos 30 dias**, **Últimos 6 meses** e **Último
+- Períodos: **Todo o histórico** (padrão), **Última semana**, **Últimos 30 dias**, **Últimos 6 meses** e **Último
   ano**. São intervalos móveis até o instante da consulta, incluindo hoje. Meses
   usam o calendário com ajuste para o último dia válido do mês. Horários da tela
   usam o fuso do navegador. Esses períodos não excluem hoje como as comparações
@@ -18,15 +19,28 @@ registros por página e um cursor para a próxima; não transfere o histórico i
   Uma nova consulta reinicia a paginação. Erros preservam os filtros.
 
 `GET /audit/options` lista autores e ações disponíveis no workspace, usando
-agregações no banco. `GET /audit/search` aceita `timeframe=7d|30d|6m|1y`, `action`,
+agregações no banco. `GET /audit/search` aceita `timeframe=all|7d|30d|6m|1y`, `action`,
 `actorUserId`, `order=asc|desc` e `cursor`. `actorUserId=system` consulta ações
 sem autor de conta registrado. Valores são validados; todos os registros e
 cursores são restritos ao tenant autenticado.
 
+**Baixar CSV** exporta todas as páginas da consulta aplicada. Alterações ainda não
+aplicadas nos campos não mudam o arquivo. `GET /audit/export` aceita os mesmos
+filtros da consulta, ignora o cursor de página e transmite os resultados em lotes
+de 500, sem carregar todo o histórico na memória do servidor. O instante final
+da consulta fica fixo durante a exportação para excluir atividades criadas depois
+do início. A exportação respeita as mesmas restrições por tenant, autor e identidade.
+O CSV contém cabeçalho, BOM UTF-8, datas UTC e campos entre aspas, com fórmulas de
+planilha neutralizadas. Falhas de download permitem tentar novamente.
+
+A aba mantém os filtros, a página atual e os registros carregados ao alternar
+entre as abas de Configurações. Painéis são carregados na primeira visita e
+preservados até sair da página; abas restritas nunca são montadas para visualizadores.
+
 `GET /audit?action=...` mantém a resposta legada em array, limitada aos 100
 registros mais recentes, sem identidades, metadados ou hashes de IP. Clientes
 anteriores continuam funcionando enquanto há páginas antigas abertas. Publique
-a API com `/audit/search` e `/audit/options` antes do novo dashboard.
+a API com `/audit/search`, `/audit/options` e `/audit/export` antes do novo dashboard.
 
 ## Autores atuais e antigos
 
@@ -103,3 +117,10 @@ O teste opcional com `AUDIT_TEST_DATABASE_URL` exige PostgreSQL local e cria um
 schema próprio, descartado ao final; valida transações reais, identificação após
 remoção de membro e paginação com datas iguais. Uma trigger que rejeita a gravação
 de auditoria demonstra que o cadastro de site e a remoção de membro são desfeitos.
+
+Também há testes para consulta automática sem filtros, páginas de 10 registros,
+exportação completa com limite de tempo fixo, identidades restritas no CSV e
+neutralização de fórmulas. A conferência local no navegador verifica as abas sem
+novas consultas ao retornar, os rascunhos preservados, o accordion de experimentos
+e o download de todas as páginas filtradas em CSV. Capturas desktop/mobile e os
+resultados dessa conferência ficam em `.local-mock/`, fora do versionamento.

@@ -3,7 +3,7 @@
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 
 import { api, type ConversionGoal } from '@/lib/api';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
@@ -63,6 +63,7 @@ const ACTIONS: Record<string, { label: string; action: string; variant?: 'destru
 };
 
 export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId: string; onChanged: () => void }): React.ReactElement {
+  const goalInputId = useId();
   const editable = canEdit(useSession().role);
   const [exp, setExp] = useState<ExperimentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -163,8 +164,8 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
         {editable && ['draft', 'ai_suggested'].includes(exp.status) ? (
           <form onSubmit={saveGoal} className="mt-3 flex flex-wrap items-end gap-3">
             <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
-              <label htmlFor="primary-goal" className="text-sm">Meta</label>
-              <select id="primary-goal" name="primaryGoalId" key={exp.primaryGoalId ?? 'all'} defaultValue={exp.primaryGoalId ?? ''}
+              <label htmlFor={goalInputId} className="text-sm">Meta</label>
+              <select id={goalInputId} name="primaryGoalId" key={exp.primaryGoalId ?? 'all'} defaultValue={exp.primaryGoalId ?? ''}
                 disabled={busy || goals === null} className="min-h-11 w-full min-w-0 rounded-md border border-border bg-transparent px-3 py-2 text-sm">
                 <option value="">Todas as metas de conversão</option>
                 {(goals ?? []).map(goal => <option key={goal.id} value={goal.id}>{goal.name} ({goal.kind})</option>)}

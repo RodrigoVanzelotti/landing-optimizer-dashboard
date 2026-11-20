@@ -103,13 +103,23 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   into visual references; never reuse DOM coordinates on a print layout. Hide
   overlay controls on captures without element positions and retain metrics below.
 - Experiments owns the list, pending-review queue and inline review. Keep review
-  selection in the URL so deep links and browser back continue to work.
+  selection in the URL so deep links and browser back continue to work. Expand
+  details as an accordion directly under the selected row, without inserting a
+  separate detail area above the list. Keep visited details when collapsing.
+- In-page tabs update browser history without navigating/remounting the page.
+  Mount each panel on its first visit, then keep it hidden when inactive so forms,
+  filters, loaded data and viewer controls survive tab changes. Reset site-scoped
+  panels when the site changes; never mount restricted tabs for unauthorized roles.
 - Settings groups team, activity log and billing. Its navigation entry sits
   immediately above sign out. Preserve each area's role restrictions; viewers
   retain activity-log access without loading team or billing content.
-- Activity log loads records only after a filter is explicitly applied, 25 rows
-  per page. Offer last week / 30 days / six months / year, action, author and
-  newest/oldest ordering. Audit dates include today, unlike overview comparisons.
+- Activity log loads all-time records immediately, 10 rows per page. Filters stay
+  visible and optional: all history / last week / 30 days / six months / year,
+  action, author and newest/oldest ordering. Submit applies drafts and restarts
+  pagination; clearing filters restores all history. CSV downloads all matching
+  pages of the applied query, using a fixed time boundary and the same identity
+  restrictions as the screen. Escape CSV fields and neutralize spreadsheet formulas.
+  Audit dates include today, unlike overview comparisons.
   Show the actor, affected account/site when available, target ID and timestamp.
   Only administrators may list/filter authors outside the current team; API reads
   redact their identities for other roles and reject direct historical-author

@@ -1,7 +1,6 @@
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
-import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import type { AnalyticsTimeframe } from '@/lib/api';
 import { useSites } from '@/lib/use-sites';
@@ -12,6 +11,7 @@ import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { SiteHeatmap } from '@/components/site-heatmap';
 import { OverviewAnalytics } from '@/components/overview-analytics';
+import { PersistentPanel, TabLink } from '@/components/persistent-tabs';
 
 export default function OverviewPage() {
   return <Suspense fallback={<DataState loading title="Carregando…" />}><OverviewContent /></Suspense>;
@@ -46,9 +46,10 @@ function OverviewContent() {
         : !sites.length ? <DataState title="Nenhum site cadastrado" description="Cadastre um site e instale o snippet." href="/sites" action="Ir para sites" />
         : <>
           <nav aria-label="Nesta visão geral" className="mb-8 flex flex-wrap gap-x-6 gap-y-2 border-b border-border">
-            {[['data', 'Dados e indicadores'], ['experience', 'Experiência do usuário']].map(([id, label]) => <Link key={id} href={`/overview?tab=${id}`} scroll={false} aria-current={tab === id ? 'page' : undefined} className={`inline-flex min-h-11 items-center border-b-2 px-1 py-3 text-sm font-medium ${tab === id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</Link>)}
+            {[['data', 'Dados e indicadores'], ['experience', 'Experiência do usuário']].map(([id, label]) => <TabLink key={id} href={`/overview?tab=${id}`} aria-current={tab === id ? 'page' : undefined} className={`inline-flex min-h-11 items-center border-b-2 px-1 py-3 text-sm font-medium ${tab === id ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'}`}>{label}</TabLink>)}
           </nav>
-          {tab === 'data' ? <OverviewAnalytics siteId={siteId} timeframe={timeframe} onTimeframeChange={setTimeframe} refreshKey={attempt} /> : <section id="heatmap" aria-labelledby="heatmap-heading"><h2 id="heatmap-heading" className="text-xl font-semibold tracking-tight">Mapa de interações</h2><p className="mb-5 mt-2 text-sm text-muted-foreground">Cliques, atenção e rolagem na captura.</p><SiteHeatmap key={`${siteId}-${attempt}`} siteId={siteId} domain={site?.primaryDomain} /></section>}
+          <PersistentPanel active={tab === 'data'}><OverviewAnalytics siteId={siteId} timeframe={timeframe} onTimeframeChange={setTimeframe} refreshKey={attempt} /></PersistentPanel>
+          <PersistentPanel active={tab === 'experience'}><section id="heatmap" aria-labelledby="heatmap-heading"><h2 id="heatmap-heading" className="text-xl font-semibold tracking-tight">Mapa de interações</h2><p className="mb-5 mt-2 text-sm text-muted-foreground">Cliques, atenção e rolagem na captura.</p><SiteHeatmap key={`${siteId}-${attempt}`} siteId={siteId} domain={site?.primaryDomain} /></section></PersistentPanel>
         </>}
     </div>
   );
