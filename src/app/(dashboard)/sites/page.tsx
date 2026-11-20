@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
+import { normalizeSiteDomain } from '@/lib/site-domain';
 
 export default function SitesPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
@@ -25,7 +26,8 @@ export default function SitesPage(): React.ReactElement {
     setSubmitting(true);
     setFormError(null);
     try {
-      const site = await api.post<Site>('/sites', { name, primaryDomain: domain });
+      const primaryDomain = normalizeSiteDomain(domain);
+      const site = await api.post<Site>('/sites', { name, primaryDomain });
       addSite(site);
       setName('');
       setDomain('');
@@ -55,20 +57,23 @@ export default function SitesPage(): React.ReactElement {
             />
           </div>
           <div className="flex flex-col">
-            <label className="mb-1 text-xs text-muted-foreground">Primary domain</label>
+            <label htmlFor="site-domain" className="mb-1 text-xs text-muted-foreground">Primary domain</label>
             <input
+              id="site-domain"
+              aria-describedby="site-domain-help"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               required
               className="h-9 rounded-md border border-border px-3 text-sm"
               placeholder="example.com"
             />
+            <p id="site-domain-help" className="mt-1 text-xs text-muted-foreground">Aceita domínio ou URL completa; salvamos apenas o domínio e a porta, se houver.</p>
           </div>
           <Button type="submit" disabled={submitting}>
             {submitting ? 'Creating…' : 'Create site'}
           </Button>
         </form>
-        {formError ? <p className="mt-2 text-sm text-red-600">{formError}</p> : null}
+        {formError ? <p role="alert" className="mt-2 text-sm text-red-600">{formError}</p> : null}
       </Card>}
 
       {error ? (

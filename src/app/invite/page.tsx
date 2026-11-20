@@ -53,7 +53,6 @@ export default async function InvitePage({ searchParams }: {
             <Link href="/login" className="mt-6 inline-block font-medium text-primary underline underline-offset-4">Já tenho conta</Link>
           </section>
         )}
-        <footer className="text-center text-xs leading-relaxed text-muted-foreground">Landing Optimizer · Um espaço para experimentar, aprender e evoluir.</footer>
       </div>
     </main>
   );
