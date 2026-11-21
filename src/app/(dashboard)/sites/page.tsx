@@ -60,14 +60,12 @@ export default function SitesPage(): React.ReactElement {
             <label htmlFor="site-domain" className="mb-1 text-xs text-muted-foreground">Domínio principal</label>
             <input
               id="site-domain"
-              aria-describedby="site-domain-help"
               value={domain}
               onChange={(e) => setDomain(e.target.value)}
               required
               className="h-9 rounded-md border border-border px-3 text-sm"
               placeholder="example.com"
             />
-            <p id="site-domain-help" className="mt-1 text-xs text-muted-foreground">Aceita domínio ou URL completa; salvamos apenas o domínio e a porta, se houver.</p>
           </div>
           <Button type="submit" disabled={submitting}>
             {submitting ? 'Criando…' : 'Criar site'}
