@@ -10,17 +10,25 @@ import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { GoalsManager } from '@/components/goals-manager';
+import { useSites } from '@/lib/use-sites';
 
 interface SnippetResponse {
   siteId: string;
   html: string;
-  gtm: { instructions: string; html: string };
   csp: { scriptSrc: string; connectSrc: string[] };
 }
 
 export default function SiteInstallPage(): React.ReactElement {
-  const editable = canEdit(useSession().role);
   const params = useParams<{ id: string }>();
+  return <SiteInstallation key={params.id} siteId={params.id} />;
+}
+
+function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
+  const editable = canEdit(useSession().role);
+  const { sites, reload } = useSites();
+  const site = sites.find(site => site.id === siteId);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
   const [snippet, setSnippet] = useState<SnippetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -28,11 +36,13 @@ export default function SiteInstallPage(): React.ReactElement {
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    let active = true;
     api
-      .get<SnippetResponse>(`/sites/${params.id}/snippet`)
-      .then(setSnippet)
-      .catch((e: Error) => setError(e.message));
-  }, [params.id]);
+      .get<SnippetResponse>(`/sites/${siteId}/snippet`)
+      .then(value => { if (active) setSnippet(value); })
+      .catch((e: Error) => { if (active) setError(e.message); });
+    return () => { active = false; };
+  }, [siteId]);
 
   async function copy(): Promise<void> {
     if (!snippet) return;
@@ -42,11 +52,15 @@ export default function SiteInstallPage(): React.ReactElement {
   }
 
   async function publish(): Promise<void> {
+    if (!window.confirm('Publicar a configuração deste site?')) return;
     setPublishing(true);
     setPublishMsg(null);
     try {
-      const res = await api.post<{ version: number }>(`/sites/${params.id}/config/publish`);
+      const res = await api.post<{ version: number }>(`/sites/${siteId}/config/publish`);
+      setPublishedVersion(res.version);
+      setHasChanges(false);
       setPublishMsg(`Configuração publicada (v${res.version}).`);
+      reload();
     } catch (e) {
       setPublishMsg(`Não foi possível publicar: ${(e as Error).message}`);
     } finally {
@@ -59,15 +73,10 @@ export default function SiteInstallPage(): React.ReactElement {
       <PageHeader
         title="Instalação do código"
         description="Adicione antes de </head>."
-        action={editable ?
-          <Button onClick={publish} variant="outline" disabled={publishing}>
-            {publishing ? 'Publicando…' : 'Publicar configuração'}
-          </Button> : undefined
-        }
       />
 
-      {error ? <p className="text-sm text-red-600">{error}</p> : null}
-      {publishMsg ? <p className="mb-4 text-sm text-muted-foreground">{publishMsg}</p> : null}
+      {(hasChanges || (publishedVersion ?? site?.configVersion) === 0) && <p role="status" className="mb-6 rounded-md border border-border bg-muted p-4 text-sm">{hasChanges ? 'Há alterações feitas nesta tela desde a última publicação manual da configuração.' : 'A configuração deste site ainda não foi publicada.'} {editable ? 'Use Publicar configuração ao final da página.' : 'Peça a um editor ou administrador para publicar a configuração.'}</p>}
+      {error ? <p role="alert" className="text-sm text-red-600">{error}</p> : null}
 
       {snippet ? (
         <div className="grid gap-4">
@@ -82,26 +91,28 @@ export default function SiteInstallPage(): React.ReactElement {
               {snippet.html}
             </pre>
           </Card>
-
-          <Card>
-            <CardTitle>Google Tag Manager</CardTitle>
-            <p className="mt-2 text-sm text-muted-foreground">Crie uma tag de HTML personalizado no Google Tag Manager, cole o código de rastreamento e configure o acionamento em todas as páginas.</p>
-          </Card>
-
-          <Card>
-            <CardTitle>Orientações de segurança (CSP)</CardTitle>
-            <pre className="mt-2 overflow-x-auto rounded bg-muted p-3 text-xs">
-              {`script-src  'self' ${snippet.csp.scriptSrc};\nconnect-src 'self' ${snippet.csp.connectSrc.join(' ')};`}
-            </pre>
-          </Card>
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">Carregando…</p>
       )}
 
       <div className="mt-4">
-        <GoalsManager siteId={params.id} />
+        <GoalsManager siteId={siteId} onChanged={() => { setPublishMsg(null); setHasChanges(true); }} />
       </div>
+
+      <section aria-label="Publicação da configuração" className="mt-8 border-t border-border pt-6">
+        {editable && <Button onClick={publish} disabled={publishing || !snippet} aria-busy={publishing} className="min-h-11">
+          {publishing ? 'Publicando…' : 'Publicar configuração'}
+        </Button>}
+        {publishMsg && <p role="status" className="mt-3 text-sm text-muted-foreground">{publishMsg}</p>}
+      </section>
+
+      {snippet && <details className="mt-8 rounded-lg border border-border p-5">
+        <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">Orientações de segurança (CSP)</summary>
+        <pre className="mt-2 overflow-x-auto rounded bg-muted p-3 text-xs">
+          {`script-src  'self' ${snippet.csp.scriptSrc};\nconnect-src 'self' ${snippet.csp.connectSrc.join(' ')};`}
+        </pre>
+      </details>}
     </div>
   );
 }

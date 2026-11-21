@@ -19,7 +19,7 @@ const inputClass =
   'min-h-11 min-w-0 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
 /** Per-site conversion goal management (create, list, delete). */
-export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement {
+export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged: () => void }): React.ReactElement {
   const editable = canEdit(useSession().role);
   const [goals, setGoals] = useState<ConversionGoal[]>([]);
   const [name, setName] = useState('');
@@ -71,6 +71,7 @@ export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement
         ...(matcher ? { matcher } : {}),
       });
       setNotice('Meta adicionada. Novos eventos correspondentes serão contados como conversões.');
+      onChanged();
       setName('');
       setUrlPath('');
       setSelector('');
@@ -86,6 +87,7 @@ export function GoalsManager({ siteId }: { siteId: string }): React.ReactElement
     setError(null);
     try {
       await api.del(`/sites/${siteId}/goals/${id}`);
+      onChanged();
       load();
     } catch (e) {
       setError(errorMessage(e));

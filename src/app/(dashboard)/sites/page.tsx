@@ -89,7 +89,7 @@ export default function SitesPage(): React.ReactElement {
               <Link href={`/sites/${site.id}`} onClick={() => selectSite(site.id)} className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 <p className="break-words font-medium">{site.name}</p>
                 <p className="break-all text-sm text-muted-foreground">{site.primaryDomain}</p>
-                <p className="mt-1 text-xs text-muted-foreground">configuração v{site.configVersion} · {site.status === 'active' ? 'Ativo' : 'Pausado'}{favoriteSiteId === site.id ? ' · Favorito — abre por padrão' : ''}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Versão {site.configVersion}: {site.status === 'active' ? 'ATIVO' : 'PAUSADO'}{favoriteSiteId === site.id ? ' · Favorito — abre por padrão' : ''}</p>
               </Link>
               <Button type="button" variant="ghost" className="h-11 w-11 shrink-0 p-0" disabled={favoriteBusy} aria-pressed={favoriteSiteId === site.id}
                 aria-label={`${favoriteSiteId === site.id ? 'Remover favorito' : 'Favoritar'}: ${site.name}`}

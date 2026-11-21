@@ -57,6 +57,10 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Navigation and data presentation
 
+- Site installation keeps publication below goals, asks for confirmation and
+  shows a local notice after successful edits on that screen. CSP is the final
+  collapsed disclosure. This UI does not change API publication or save behavior.
+
 - The shared top navigation selects the active site across Overview, AI insights,
   Experiments (including the review queue), Results and Brand guardrails. It also
   appears in Sites; account/workspace pages such as Clients and Settings remain
