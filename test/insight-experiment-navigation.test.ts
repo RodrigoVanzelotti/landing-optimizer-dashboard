@@ -31,7 +31,7 @@ afterEach(async () => { await act(async () => root.unmount()); vi.restoreAllMock
 
 it('scopes the pipeline by insight and links back from the card and experiment details', async () => {
   await act(async () => root.render(React.createElement(ExperimentsPage)));
-  expect(api.get).toHaveBeenCalledWith('/experiments?siteId=site&insightId=origin');
+  expect(api.get).toHaveBeenCalledWith('/experiments?siteId=site');
   expect(api.get).not.toHaveBeenCalledWith(expect.stringContaining('/approvals?'));
   expect(host.textContent).toContain('Clareza da chamada');
   expect(host.querySelectorAll('a[href="/insights?insight=origin"]').length).toBeGreaterThanOrEqual(3);
@@ -62,18 +62,20 @@ it('clearly acknowledges an exceeded deadline rather than repeating an expired p
   expect(host.textContent).toContain('O prazo de 24 horas após a aprovação do insight foi ultrapassado');
 });
 
-it('does not apply stale results from another origin filter', async () => {
-  let release: (rows: Experiment[]) => void = () => {};
+it('keeps the site list in memory and ignores stale origin metadata after changing the insight filter', async () => {
+  let release: (rows: InsightSuggestion[]) => void = () => {};
   const initial = vi.mocked(api.get).getMockImplementation()!;
-  vi.mocked(api.get).mockImplementation(path => path === '/experiments?siteId=site&insightId=origin' ? new Promise(resolve => { release = resolve; }) : initial(path));
+  const oldOrigin = origin;
+  experiments = [experiment, { ...experiment, id: 'second', name: 'Outro teste', insightId: 'other' }];
+  vi.mocked(api.get).mockImplementation(path => path === '/sites/site/ai/suggestions?insightId=origin' ? new Promise(resolve => { release = resolve; }) : initial(path));
   await act(async () => root.render(React.createElement(ExperimentsPage)));
   window.history.replaceState(null, '', '/experiments?insight=other');
   origin = { ...origin, id: 'other', payload: { title: 'Outro insight' } };
-  experiments = [{ ...experiment, id: 'second', name: 'Outro teste', insightId: 'other' }];
   await act(async () => root.render(React.createElement(ExperimentsPage)));
-  await act(async () => release([experiment]));
+  await act(async () => release([oldOrigin]));
   expect(host.textContent).toContain('Outro teste');
   expect(host.textContent).not.toContain('Chamada principal');
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
 });
 
 it('reports failed preparation-state reads as errors instead of showing a misleading empty state', async () => {

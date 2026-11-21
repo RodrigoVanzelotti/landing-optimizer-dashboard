@@ -6,7 +6,11 @@ import ExperimentsPage from '../src/app/(dashboard)/experiments/page';
 import ResultsPage from '../src/app/(dashboard)/results/page';
 import { api, type Experiment } from '../src/lib/api';
 
-vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(window.location.search) }));
+vi.mock('next/navigation', async () => {
+  const { useSyncExternalStore } = await import('react');
+  const subscribe = (listener: () => void) => { window.addEventListener('popstate', listener); return () => window.removeEventListener('popstate', listener); };
+  return { useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => window.location.search, () => '')) };
+});
 vi.mock('../src/lib/use-sites', () => ({ useSites: () => ({ siteId: 'site' }) }));
 vi.mock('../src/lib/session', () => ({ useSession: () => ({ role: 'editor' }) }));
 vi.mock('../src/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
@@ -17,7 +21,12 @@ beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-21T12:00:00Z'));
   window.history.replaceState(null, '', '/experiments');
+  for (const method of ['pushState', 'replaceState'] as const) {
+    const original = window.history[method].bind(window.history);
+    vi.spyOn(window.history, method).mockImplementation((...args: Parameters<History['pushState']>) => { original(...args); window.dispatchEvent(new PopStateEvent('popstate')); });
+  }
   host = document.createElement('div'); root = createRoot(host);
+  document.body.append(host);
   items = [base, { ...base, id: 'running', name: 'Texto em teste', status: 'running', type: 'copy' }, { ...base, id: 'completed', name: 'Teste concluído', status: 'completed' }, { ...base, id: 'expired', name: 'Proposta vencida', createdAt: '2026-11-14T12:00:00Z' }, { ...base, id: 'rejected', name: 'Proposta negada', status: 'rejected', createdAt: '2026-10-01T00:00:00Z' }];
   vi.mocked(api.get).mockImplementation(async path => {
     if (path.startsWith('/experiments?')) return items;
@@ -27,8 +36,21 @@ beforeEach(() => {
     return { ...items.find(item => path === `/experiments/${item.id}`), primaryGoalId: null, variants: [] };
   });
 });
-afterEach(async () => { await act(async () => root.unmount()); vi.restoreAllMocks(); vi.resetAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.resetAllMocks(); });
 const render = async () => { await act(async () => root.render(React.createElement(ExperimentsPage))); };
+async function select(id: string, value: string) {
+  await act(async () => { const input = host.querySelector<HTMLSelectElement>(`#${id}`)!; input.value = value; input.dispatchEvent(new Event('change', { bubbles: true })); });
+}
+async function search(value: string) {
+  await act(async () => {
+    const input = host.querySelector<HTMLInputElement>('#experiment-search')!;
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+}
+async function chooseStage(label: string) {
+  await act(async () => [...host.querySelectorAll<HTMLButtonElement>('nav[aria-label="Etapas dos experimentos"] button')].find(button => button.textContent?.startsWith(label))!.click());
+}
 
 it('renders the five pipeline stages with correct cards and a direct results link', async () => {
   await render();
@@ -39,22 +61,74 @@ it('renders the five pipeline stages with correct cards and a direct results lin
   expect(host.querySelector('a[href="/results?experiment=completed"]')).not.toBeNull();
 });
 
-it('applies combined filters to the URL, preserves the insight origin and restores the unfiltered board', async () => {
+it('filters immediately in memory, preserves the source insight and keeps the search input focused', async () => {
   window.history.replaceState(null, '', '/experiments?insight=origin');
   await render();
-  host.querySelector<HTMLInputElement>('#experiment-search')!.value = 'aprovado';
-  host.querySelector<HTMLSelectElement>('#experiment-type')!.value = 'headline';
-  host.querySelector<HTMLSelectElement>('#experiment-risk')!.value = 'low';
-  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
-  await render();
+  const input = host.querySelector<HTMLInputElement>('#experiment-search')!;
+  input.focus();
+  await search('aprovado');
+  await select('experiment-type', 'headline');
+  await select('experiment-risk', 'low');
   expect(window.location.search).toContain('insight=origin');
   expect(window.location.search).toContain('type=headline');
   expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(1);
   expect(host.textContent).toContain('1 de 5 experimentos com os filtros aplicados');
+  expect(host.querySelector('#experiment-search')).toBe(input);
+  expect(document.activeElement).toBe(input);
+  expect([...host.querySelectorAll('button')].some(button => button.textContent === 'Aplicar')).toBe(false);
+  expect(api.get).toHaveBeenCalledWith('/experiments?siteId=site');
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
   const clear = [...host.querySelectorAll('a')].find(link => link.textContent === 'Limpar filtros')!;
   expect(clear.getAttribute('href')).toBe('/experiments?insight=origin');
-  await act(async () => clear.click()); await render();
+  await act(async () => clear.click());
   expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(5);
+});
+
+it('moves stage selection outside filters and expands the selected stage into the whole board', async () => {
+  await render();
+  expect(host.querySelector('#experiment-stage')).toBeNull();
+  expect(host.querySelector('details nav')).toBeNull();
+  await chooseStage('Em experimentação');
+  expect(window.location.search).toBe('?stage=running');
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] section')).toHaveLength(1);
+  expect(host.querySelector('[aria-labelledby="stage-running"] h3')?.textContent).toBe('Texto em teste');
+  expect(host.querySelector('[aria-labelledby="stage-waiting"]')).toBeNull();
+  await chooseStage('Todas as etapas');
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] section')).toHaveLength(5);
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
+});
+
+it('combines stage, type, origin, date and ordering locally and clears other filters without clearing the stage', async () => {
+  items.push({ ...base, id: 'other-running', name: 'Outro texto', status: 'running', type: 'copy', insightId: null, riskScore: 80, createdAt: '2026-11-01T00:00:00Z' });
+  await render();
+  await chooseStage('Em experimentação');
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(2);
+  await select('experiment-sort', 'oldest');
+  expect(host.querySelector('[aria-label="Pipeline de experimentos"] h3')?.textContent).toBe('Outro texto');
+  await select('experiment-type', 'copy');
+  await select('experiment-origin', 'other');
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(1);
+  await select('experiment-period', '7');
+  expect(host.textContent).toContain('Nenhum experimento corresponde aos filtros');
+  const clear = [...host.querySelectorAll('a')].find(link => link.textContent === 'Limpar filtros')!;
+  expect(clear.getAttribute('href')).toBe('/experiments?stage=running');
+  await act(async () => clear.click());
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(2);
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
+});
+
+it('switches between board and list while preserving stage and filters without new reads', async () => {
+  await render();
+  await select('experiment-type', 'copy');
+  await chooseStage('Em experimentação');
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Lista')!.click());
+  expect(host.querySelector('[aria-label="Pipeline de experimentos"]')).toBeNull();
+  expect(host.querySelector('#experiment-list-title')?.textContent).toBe('Em experimentação');
+  expect(host.querySelectorAll('[aria-labelledby="experiment-list-title"] h3')).toHaveLength(1);
+  expect(host.querySelector<HTMLSelectElement>('#experiment-type')!.value).toBe('copy');
+  await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Quadro')!.click());
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] section')).toHaveLength(1);
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
 });
 
 it('keeps expired proposals readable while hiding their editing and starting actions', async () => {

@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "border-accent-on-rounded",
+        "value": "*",
+        "files": [
+          "src/app/(dashboard)/experiments/page.tsx"
+        ],
+        "createdAt": "2026-11-21T20:26:57.845Z",
+        "reason": "User explicitly requested the supplied pipeline reference, which uses rounded columns with a top border accent. Preserve that intentional reference design on this page."
+      }
+    ]
+  }
+}

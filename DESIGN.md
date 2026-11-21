@@ -150,9 +150,18 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   records stay readable, while the API blocks expired mutations and starts.
   Existing running tests and results never expire. Refusal remains distinct from
   expiry and is available before starting, including for approved proposals.
-  Keep search, stage, type, risk, origin, creation-period and ordering controls
-  above the board. Combine filters, expose counts, clear them without losing the
-  source insight, and preserve applied filters/review selection in the URL.
+  Follow the supplied pipeline reference: real summary counts, a bordered control
+  area with Quadro/Lista views, compact cards and stage headers with counters.
+  Load the complete site experiment list once into page memory. Apply search,
+  stage, source insight, type, risk, origin, creation-period and ordering locally,
+  immediately on change. Only explicit refreshes/mutations or site changes reload
+  the experiment list; filter/view changes never query it again.
+  Stage pills (including Todas as etapas) sit above the Filtros disclosure and
+  remain independent of other filters. Selecting a stage replaces the multi-column
+  board with that stage across the full content width. Keep list view scoped to
+  the same selection. Clearing other filters preserves stage, view and source
+  insight. Persist selections in the URL; search replaces history while stage/view
+  navigation adds history entries. Keep the search input mounted while typing.
   Keep horizontal board scrolling local on desktop; stack stages on mobile.
   Expand selected details at full content width below the board, preserving
   visited details when collapsing. Results cards link to that experiment's results.

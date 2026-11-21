@@ -1,10 +1,10 @@
 ﻿'use client';
 
-import { Suspense, useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, type Experiment, type InsightSuggestion } from '@/lib/api';
-import { Badge } from '@/components/ui/card';
+import { Badge, Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
@@ -16,6 +16,7 @@ import { InsightPreparationNotice } from '@/components/insight-preparation-notic
 
 const control = 'min-h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-primary';
 const dateLabel = (value: number) => new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+const filterKeys = ['q', 'type', 'risk', 'origin', 'period', 'sort', 'filter', 'review'];
 
 export default function ExperimentsPage() {
   return <Suspense fallback={<DataState loading title="Carregando experimentos…" />}><ExperimentsContent /></Suspense>;
@@ -24,8 +25,7 @@ export default function ExperimentsPage() {
 function ExperimentsContent() {
   const params = useSearchParams();
   const { siteId } = useSites();
-  const insightId = params.get('insight');
-  return <ExperimentsList key={`${siteId}:${insightId ?? 'all'}`} siteId={siteId} insightId={insightId} />;
+  return <ExperimentsList key={siteId} siteId={siteId} insightId={params.get('insight')} />;
 }
 
 function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: string | null }) {
@@ -33,8 +33,7 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
   const selected = params.get('review');
   const [experiments, setExperiments] = useState<Experiment[] | null>(null);
   const [error, setError] = useState(false);
-  const [origin, setOrigin] = useState<InsightSuggestion | null>();
-  const [originError, setOriginError] = useState(false);
+  const [originResource, setOriginResource] = useState<{ id?: string; data?: InsightSuggestion | null; error?: boolean }>({});
   const [attempt, setAttempt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
   const refresh = useCallback(() => { setNow(Date.now()); setAttempt(n => n + 1); }, []);
@@ -45,107 +44,148 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
 
   useEffect(() => {
     let active = true;
-    setError(false); setOriginError(false);
-    void Promise.allSettled([
-      api.get<Experiment[]>(`/experiments?siteId=${encodeURIComponent(siteId)}${insightId ? `&insightId=${encodeURIComponent(insightId)}` : ''}`).then(data => { if (active) setExperiments(data); }).catch(() => { if (active) setError(true); }),
-      ...(insightId ? [api.get<InsightSuggestion[]>(`/sites/${siteId}/ai/suggestions?insightId=${encodeURIComponent(insightId)}`).then(data => { if (active) setOrigin(data[0] ?? null); }).catch(() => { if (active) setOriginError(true); })] : []),
-    ]);
+    setError(false);
+    api.get<Experiment[]>(`/experiments?siteId=${encodeURIComponent(siteId)}`)
+      .then(data => { if (active) setExperiments(data); })
+      .catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [attempt, siteId]);
+  useEffect(() => {
+    if (!insightId) return;
+    let active = true;
+    setOriginResource({ id: insightId });
+    api.get<InsightSuggestion[]>(`/sites/${encodeURIComponent(siteId)}/ai/suggestions?insightId=${encodeURIComponent(insightId)}`)
+      .then(data => { if (active) setOriginResource({ id: insightId, data: data.find(item => item.id === insightId) ?? null }); })
+      .catch(() => { if (active) setOriginResource({ id: insightId, error: true }); });
     return () => { active = false; };
   }, [attempt, siteId, insightId]);
+  const origin = originResource.id === insightId ? originResource.data : undefined;
+  const originError = originResource.id === insightId && originResource.error;
 
   const filters = { search: params.get('q') ?? '', type: params.get('type') ?? '', risk: params.get('risk') ?? '', origin: params.get('origin') ?? '', period: params.get('period') ?? '', sort: params.get('sort') ?? 'newest' };
-  const stage = params.get('stage') ?? (params.get('filter') === 'review' ? 'waiting' : '');
-  const activeFilters = [filters.search, filters.type, filters.risk, filters.origin, filters.period, stage].filter(Boolean).length;
-  const visible = filterExperiments(experiments ?? [], filters, now).filter(exp => (!stage || experimentStage(exp, now) === stage) && (params.get('filter') !== 'review' || exp.status === 'pending_review'));
+  const legacyReview = params.get('filter') === 'review';
+  const requestedStage = params.get('stage') ?? (legacyReview ? 'waiting' : '');
+  const selectedStage = experimentStages.find(item => item.id === requestedStage);
+  const stage = selectedStage?.id ?? '';
+  const view = params.get('view') === 'list' ? 'list' : 'board';
+  const activeFilters = [filters.search, filters.type, filters.risk, filters.origin, filters.period, legacyReview].filter(Boolean).length;
+  const scoped = (experiments ?? []).filter(exp => !insightId || exp.insightId === insightId);
+  const matches = filterExperiments(scoped, filters, now).filter(exp => !legacyReview || exp.status === 'pending_review');
+  const visible = matches.filter(exp => !stage || experimentStage(exp, now) === stage);
+  const stageCount = (id: string, items = matches) => items.filter(exp => experimentStage(exp, now) === id).length;
 
   function href(id?: string | null) {
     const query = new URLSearchParams(params.toString());
     if (id) query.set('review', id); else query.delete('review');
     return `/experiments${query.size ? `?${query}` : ''}`;
   }
-  const clearHref = `/experiments${insightId ? `?insight=${encodeURIComponent(insightId)}` : ''}`;
-  function applyFilters(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const query = new URLSearchParams();
-    if (insightId) query.set('insight', insightId);
-    for (const key of ['q', 'type', 'risk', 'origin', 'period', 'stage', 'sort']) {
-      const value = String(data.get(key) ?? '').trim();
-      if (value && !(key === 'sort' && value === 'newest')) query.set(key, value);
-    }
-    window.history.pushState(null, '', `/experiments${query.size ? `?${query}` : ''}`);
+  const clearQuery = new URLSearchParams(params.toString());
+  filterKeys.forEach(key => clearQuery.delete(key));
+  const clearHref = `/experiments${clearQuery.size ? `?${clearQuery}` : ''}`;
+  function updateFilter(key: string, value: string, push = false) {
+    const query = new URLSearchParams(window.location.search);
+    if (value && !(key === 'sort' && value === 'newest') && !(key === 'view' && value === 'board')) query.set(key, value);
+    else query.delete(key);
+    if (key !== 'view') query.delete('review');
+    if (key === 'stage') query.delete('filter');
+    const url = `/experiments${query.size ? `?${query}` : ''}`;
+    if (push) window.history.pushState(null, '', url);
+    else window.history.replaceState(null, '', url);
   }
 
   const failed = error || originError;
   const loading = !experiments || (insightId && origin === undefined);
   const ready = !failed && !loading && !(insightId && origin === null);
+  const selectedVisible = visible.some(exp => exp.id === selected);
   useEffect(() => {
-    if (!selected || !ready) return;
+    if (!selected || !ready || !selectedVisible) return;
     const detail = document.getElementById(`experiment-${selected}`);
     detail?.scrollIntoView?.({ block: 'start' });
     detail?.focus({ preventScroll: true });
-  }, [selected, ready]);
+  }, [selected, ready, selectedVisible]);
+
+  function experimentCard(exp: Experiment, list = false) {
+    const column = experimentStage(exp, now);
+    const open = selected === exp.id;
+    const expiry = experimentExpiry(exp);
+    const age = Math.max(0, Math.floor((now - Date.parse(exp.createdAt)) / 86_400_000));
+    return <li key={exp.id} className={`min-w-0 rounded-lg border bg-card p-3 ${open ? 'border-foreground' : 'border-border'}`}>
+      <div className={list ? 'grid items-center gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : ''}>
+        <div className="min-w-0"><h3><TabLink id={`card-${exp.id}`} href={href(open ? null : exp.id)} role="button" aria-expanded={open} aria-controls={`experiment-${exp.id}`} onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }} className="block min-h-11 break-words rounded py-2 text-left text-sm font-medium leading-snug underline-offset-4 hover:underline focus-visible:outline-primary">{exp.name}</TabLink></h3>
+          <p className="text-xs leading-relaxed text-muted-foreground">{experimentTypeLabels[exp.type] ?? 'Outro tipo'}</p>
+        </div>
+        <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 ${list ? 'sm:mt-0 sm:justify-end' : ''}`}>
+          <Badge>{column === 'expired' ? 'Vencido' : exp.status === 'approved' ? 'Aprovado · Pronto para iniciar' : labels[exp.status] ?? exp.status}</Badge>
+          {exp.insightId && <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} aria-label={`Ver insight de IA de origem de ${exp.name}`} className="inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Insight de origem</Link>}
+          {column === 'results' && <Link href={`/results?experiment=${encodeURIComponent(exp.id)}`} className="inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Ver resultados</Link>}
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-2 text-xs tabular-nums">
+        <span title={`Criado em ${dateLabel(Date.parse(exp.createdAt))}`} className="text-muted-foreground">{age === 0 ? 'Criado hoje' : `Criado há ${age} ${age === 1 ? 'dia' : 'dias'}`}</span>
+        <span>Risco {exp.riskScore}/100</span>
+      </div>
+      {expiry !== null && <p className="mt-1 text-xs text-muted-foreground">{column === 'expired' ? 'Venceu em' : 'Válido até'} <time dateTime={new Date(expiry).toISOString()}>{dateLabel(expiry)}</time></p>}
+    </li>;
+  }
 
   return <div lang="pt-BR">
-    <PageHeader title="Experimentos" description="Da proposta ao resultado: acompanhe cada experimento pelo quadro."
+    <PageHeader title="Experimentos" description="Acompanhe as propostas, os testes em execução e seus resultados."
       action={<Button variant="outline" className="h-11" onClick={refresh}>Atualizar</Button>} />
     {insightId && <div role="status" className="mb-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm"><p>Exibindo os experimentos vinculados a um insight de IA.</p><Link href={`/insights?insight=${encodeURIComponent(insightId)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ver insight de origem</Link><Link href="/experiments" className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ver todos os experimentos</Link></div>}
     {origin?.payload.title && <p className="mb-4 break-words text-sm"><span className="font-medium">Insight de origem:</span> {origin.payload.title}</p>}
     {origin?.approvedAt && !origin.experimentsReadyAt && <div className="mb-6"><InsightPreparationNotice approvedAt={origin.approvedAt} /></div>}
 
-    <form key={params.toString()} onSubmit={applyFilters} aria-label="Filtrar experimentos" className="mb-6 border-y border-border py-4">
-      <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1 basis-60"><label htmlFor="experiment-search" className="mb-1.5 block text-sm font-medium">Buscar experimento</label><input id="experiment-search" name="q" type="search" defaultValue={filters.search} placeholder="Nome do experimento" className={control} /></div>
-        <div className="min-w-0 flex-1 basis-44 sm:max-w-56"><label htmlFor="experiment-sort" className="mb-1.5 block text-sm font-medium">Ordenar por</label><select id="experiment-sort" name="sort" defaultValue={filters.sort} className={control}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="risk">Maior risco</option><option value="name">Nome de A a Z</option></select></div>
-        <Button type="submit" variant="outline" className="h-11">Aplicar</Button>
-        {activeFilters > 0 && <TabLink href={clearHref} className="inline-flex min-h-11 items-center px-2 text-sm text-primary underline underline-offset-4">Limpar filtros</TabLink>}
+    <dl className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">{[
+      ['Experimentos no pipeline', scoped.length], ['Em experimentação', stageCount('running', scoped)],
+      ['Resultados disponíveis', stageCount('results', scoped)], ['Vencidos e negados', stageCount('expired', scoped) + stageCount('rejected', scoped)],
+    ].map(([label, value], index) => <Card key={label} className={`p-4 shadow-none ${index === 0 ? 'border-foreground' : ''}`}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums">{experiments && !error ? value : '—'}</dd></Card>)}</dl>
+
+    <section aria-label="Controles do pipeline" className="mb-4 overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3"><div><h2 className="text-sm font-medium">Experimentos por etapa</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cada experimento na etapa em que está hoje. Escolha uma etapa para ampliar.</p></div>
+        <div role="group" aria-label="Visualização dos experimentos" className="inline-flex rounded-lg border border-border bg-background p-1">{[['board', 'Quadro'], ['list', 'Lista']].map(([value, label]) => <Button key={value} variant="ghost" className={`h-11 ${view === value ? 'bg-foreground text-background hover:bg-foreground' : ''}`} aria-pressed={view === value} onClick={() => updateFilter('view', value, true)}>{label}</Button>)}</div>
       </div>
-      <details className="mt-3" open={activeFilters > 0 || undefined}>
-        <summary className="min-h-11 w-fit cursor-pointer py-3 text-sm font-medium focus-visible:outline-primary">Filtros{activeFilters > 0 ? ` (${activeFilters})` : ''}</summary>
-        <div className="grid gap-4 pb-2 pt-2 sm:grid-cols-2 lg:grid-cols-5">
-          <div><label htmlFor="experiment-stage" className="mb-1.5 block text-sm">Etapa</label><select id="experiment-stage" name="stage" defaultValue={stage} className={control}><option value="">Todas as etapas</option>{experimentStages.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></div>
-          <div><label htmlFor="experiment-type" className="mb-1.5 block text-sm">Tipo de alteração</label><select id="experiment-type" name="type" defaultValue={filters.type} className={control}><option value="">Todos os tipos</option>{Object.entries(experimentTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
-          <div><label htmlFor="experiment-risk" className="mb-1.5 block text-sm">Pontuação de risco</label><select id="experiment-risk" name="risk" defaultValue={filters.risk} className={control}><option value="">Qualquer risco</option><option value="low">Baixo: 0 a 30</option><option value="medium">Médio: 31 a 60</option><option value="high">Alto: 61 a 100</option></select></div>
-          <div><label htmlFor="experiment-origin" className="mb-1.5 block text-sm">Origem</label><select id="experiment-origin" name="origin" defaultValue={filters.origin} className={control}><option value="">Todas as origens</option><option value="insight">Insight de IA</option><option value="other">Sem insight vinculado</option></select></div>
-          <div><label htmlFor="experiment-period" className="mb-1.5 block text-sm">Criado em</label><select id="experiment-period" name="period" defaultValue={filters.period} className={control}><option value="">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select></div>
-        </div>
-      </details>
-    </form>
+      <div className="px-4 py-3">
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-2"><div className="w-full sm:max-w-sm"><label htmlFor="experiment-search" className="mb-1.5 block text-xs font-medium">Buscar experimento</label><input id="experiment-search" type="search" value={filters.search} onChange={event => updateFilter('q', event.target.value)} placeholder="Nome do experimento" className={control} /></div><p role="status" className="py-3 text-xs tabular-nums text-muted-foreground">{experiments ? `${visible.length} de ${scoped.length} experimentos${activeFilters ? ' com os filtros aplicados' : ''}` : 'Carregando experimentos…'}</p></div>
+        <nav aria-label="Etapas dos experimentos" className="mt-3 flex flex-wrap gap-1 rounded-lg border border-border p-1 sm:w-fit">{[{ id: '', label: 'Todas as etapas' }, ...experimentStages].map(item => <Button key={item.id} variant="ghost" className={`min-h-11 h-auto max-w-full whitespace-normal px-3 py-2 text-xs ${stage === item.id ? 'bg-foreground text-background hover:bg-foreground' : 'text-muted-foreground'}`} aria-pressed={stage === item.id} onClick={() => updateFilter('stage', item.id, true)}>{item.label}<span className="ml-2 tabular-nums opacity-80">{experiments ? item.id ? stageCount(item.id) : matches.length : '—'}</span></Button>)}</nav>
+        <details className="mt-2">
+          <summary className="min-h-11 w-fit cursor-pointer py-3 text-sm font-medium focus-visible:outline-primary">Filtros{activeFilters > 0 ? ` (${activeFilters})` : ''}</summary>
+          {legacyReview && <p className="mb-3 text-xs text-muted-foreground">Somente revisões pendentes. Use Limpar filtros para ver a etapa completa.</p>}
+          <div className="grid gap-4 pb-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div><label htmlFor="experiment-type" className="mb-1.5 block text-xs">Tipo de alteração</label><select id="experiment-type" value={filters.type} onChange={event => updateFilter('type', event.target.value)} className={control}><option value="">Todos os tipos</option>{Object.entries(experimentTypeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+            <div><label htmlFor="experiment-risk" className="mb-1.5 block text-xs">Pontuação de risco</label><select id="experiment-risk" value={filters.risk} onChange={event => updateFilter('risk', event.target.value)} className={control}><option value="">Qualquer risco</option><option value="low">Baixo: 0 a 30</option><option value="medium">Médio: 31 a 60</option><option value="high">Alto: 61 a 100</option></select></div>
+            <div><label htmlFor="experiment-origin" className="mb-1.5 block text-xs">Origem</label><select id="experiment-origin" value={filters.origin} onChange={event => updateFilter('origin', event.target.value)} className={control}><option value="">Todas as origens</option><option value="insight">Insight de IA</option><option value="other">Sem insight vinculado</option></select></div>
+            <div><label htmlFor="experiment-period" className="mb-1.5 block text-xs">Criado em</label><select id="experiment-period" value={filters.period} onChange={event => updateFilter('period', event.target.value)} className={control}><option value="">Todo o histórico</option><option value="7">Últimos 7 dias</option><option value="30">Últimos 30 dias</option><option value="90">Últimos 90 dias</option></select></div>
+            <div><label htmlFor="experiment-sort" className="mb-1.5 block text-xs">Ordenar por</label><select id="experiment-sort" value={filters.sort} onChange={event => updateFilter('sort', event.target.value)} className={control}><option value="newest">Mais recentes</option><option value="oldest">Mais antigos</option><option value="risk">Maior risco</option><option value="name">Nome de A a Z</option></select></div>
+          </div>
+        </details>
+        {activeFilters > 0 && <TabLink href={clearHref} className="inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Limpar filtros</TabLink>}
+      </div>
+    </section>
 
     {failed ? <DataState error title="Não foi possível carregar os experimentos" description="Confira sua conexão e tente novamente." onRetry={refresh} />
       : loading ? <DataState loading title="Consultando experimentos…" />
       : insightId && origin === null ? <DataState error title="Insight indisponível neste site" description="Confira o site selecionado ou consulte todos os experimentos." href="/experiments" action="Ver todos os experimentos" />
       : null}
     {ready && <>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-2 text-sm"><p role="status" className="tabular-nums">{visible.length} de {experiments!.length} experimentos{activeFilters ? ' com os filtros aplicados' : ''}</p><p className="max-w-prose text-muted-foreground">Propostas vencem após 7 dias sem iniciar. Testes iniciados e resultados não vencem.</p></div>
-      {!experiments!.length && (origin?.approvedAt && !origin.experimentsReadyAt
+      <p className="mb-4 text-xs leading-relaxed text-muted-foreground">Propostas vencem após 7 dias sem iniciar. Testes iniciados e resultados não vencem.</p>
+      {!scoped.length && (origin?.approvedAt && !origin.experimentsReadyAt
         ? <p className="mb-6 text-sm text-muted-foreground">Os experimentos aparecerão aqui quando estiverem prontos. Use Atualizar para consultar a situação.</p>
         : <div className="mb-6"><DataState title="Sua próxima melhoria começa com uma hipótese" description="Após aprovar um insight de IA, seus experimentos ficarão prontos em até 24 horas e aparecerão aqui já aprovados." href="/insights" action="Explorar insights de IA" /></div>)}
-      {!!experiments!.length && !visible.length && <p role="status" className="mb-6 text-sm">Nenhum experimento corresponde aos filtros. Ajuste os parâmetros ou use Limpar filtros.</p>}
-      <div role="region" aria-label="Pipeline de experimentos" tabIndex={0} className="overflow-x-auto pb-4 focus-visible:outline-primary">
-        <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-[repeat(5,minmax(208px,1fr))]">
-          {experimentStages.map(column => {
+      {scoped.length > 0 && !visible.length && <p role="status" className="mb-4 text-sm">Nenhum experimento corresponde aos filtros. Ajuste os parâmetros ou use Limpar filtros e Todas as etapas.</p>}
+      {view === 'board' ? <div role="region" aria-label="Pipeline de experimentos" tabIndex={0} className="overflow-x-auto pb-4 focus-visible:outline-primary">
+        <div className={stage ? 'grid grid-cols-1' : 'grid grid-cols-1 items-start gap-3 md:grid-cols-[repeat(5,minmax(208px,1fr))]'}>
+          {(selectedStage ? [selectedStage] : experimentStages).map(column => {
             const items = visible.filter(exp => experimentStage(exp, now) === column.id);
-            return <section key={column.id} aria-labelledby={`stage-${column.id}`} className="min-w-0 rounded-lg bg-muted/50 p-3">
-              <header className="mb-4 md:min-h-20"><div className="flex items-start justify-between gap-2"><h2 id={`stage-${column.id}`} className="text-sm font-semibold">{column.label}</h2><span aria-label={`${items.length} experimentos`} className="text-xs tabular-nums text-muted-foreground">{items.length}</span></div><p className="mt-1 text-xs leading-relaxed text-muted-foreground">{column.description}</p></header>
-              <ul className="space-y-3">{items.map(exp => {
-                const open = selected === exp.id;
-                const expiry = experimentExpiry(exp);
-                return <li key={exp.id} className={`min-w-0 rounded-lg border bg-card p-4 ${open ? 'border-primary' : 'border-border'}`}>
-                  <h3><TabLink id={`card-${exp.id}`} href={href(open ? null : exp.id)} role="button" aria-expanded={open} aria-controls={`experiment-${exp.id}`} onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }} className="block min-h-11 break-words rounded text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-primary">{exp.name}</TabLink></h3>
-                  <Badge>{column.id === 'expired' ? 'Vencido' : labels[exp.status] ?? exp.status}</Badge>
-                  {exp.status === 'approved' && column.id !== 'expired' && <p className="mt-2 text-xs font-medium">Aprovado · Pronto para iniciar</p>}
-                  <dl className="mt-3 space-y-1 text-xs text-muted-foreground"><div className="flex flex-wrap gap-x-1"><dt>Tipo:</dt><dd>{experimentTypeLabels[exp.type] ?? 'Outro tipo'}</dd></div><div className="flex gap-1"><dt>Risco:</dt><dd>{exp.riskScore}/100</dd></div><div className="flex flex-wrap gap-x-1"><dt>Criado em:</dt><dd>{dateLabel(Date.parse(exp.createdAt))}</dd></div>{expiry !== null && <div className="flex flex-wrap gap-x-1"><dt>{column.id === 'expired' ? 'Venceu em:' : 'Válido até:'}</dt><dd><time dateTime={new Date(expiry).toISOString()}>{dateLabel(expiry)}</time></dd></div>}</dl>
-                  <div className="mt-2 flex flex-col text-xs">{exp.insightId && <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ver insight de IA de origem</Link>}{column.id === 'results' && <Link href={`/results?experiment=${encodeURIComponent(exp.id)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ver resultados</Link>}</div>
-                </li>;
-              })}</ul>
-              {!items.length && <p className="py-5 text-xs text-muted-foreground">Nenhum experimento nesta etapa.</p>}
+            return <section key={column.id} aria-labelledby={`stage-${column.id}`} className="min-w-0 rounded-lg border border-t-2 border-border border-t-foreground bg-muted/40">
+              <header className="flex min-h-11 items-center justify-between gap-3 border-b border-border bg-card px-3 py-2"><h2 id={`stage-${column.id}`} className="flex min-w-0 items-center gap-2 text-xs font-medium"><span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-foreground" />{column.label}</h2><Badge className="shrink-0 border border-border bg-background tabular-nums">{items.length}</Badge></header>
+              <ul className={stage ? 'grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-2 p-2'}>{items.map(exp => experimentCard(exp))}</ul>
+              {!items.length && <p className="px-3 pb-5 pt-2 text-xs text-muted-foreground">Nenhum experimento nesta etapa.</p>}
             </section>;
           })}
         </div>
-      </div>
-      {experiments!.map(exp => <div key={exp.id} id={`experiment-${exp.id}`} tabIndex={-1} className="focus-visible:outline-primary"><PersistentPanel active={selected === exp.id && visible.some(item => item.id === exp.id)}><section aria-label={`Detalhes de ${exp.name}`} className="mt-6 border-t border-border pt-6"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Detalhes do experimento selecionado</p><TabLink href={href()} onClick={() => { const card = document.getElementById(`card-${exp.id}`); card?.focus(); }} className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Fechar detalhes</TabLink></div><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel></div>)}
-      {selected && !visible.some(exp => exp.id === selected) && <DataState error title="Experimento indisponível nesta seleção" description="Confira o site, o insight e os filtros ou escolha outro experimento do quadro." />}
+      </div> : <section aria-labelledby="experiment-list-title" className="rounded-lg border border-border bg-muted/40"><header className="flex min-h-11 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3"><h2 id="experiment-list-title" className="text-sm font-medium">{selectedStage?.label ?? 'Todos os experimentos'}</h2><Badge className="tabular-nums">{visible.length}</Badge></header><ul className="space-y-2 p-3">{visible.map(exp => experimentCard(exp, true))}</ul>{!visible.length && <p className="px-4 pb-5 text-sm text-muted-foreground">Nenhum experimento nesta seleção.</p>}</section>}
+      {experiments!.map(exp => <div key={exp.id} id={`experiment-${exp.id}`} tabIndex={-1} className="focus-visible:outline-primary"><PersistentPanel active={selected === exp.id && selectedVisible}><section aria-label={`Detalhes de ${exp.name}`} className="mt-6 border-t border-border pt-6"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Detalhes do experimento selecionado</p><TabLink href={href()} onClick={() => document.getElementById(`card-${exp.id}`)?.focus()} className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Fechar detalhes</TabLink></div><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel></div>)}
+      {selected && !selectedVisible && <DataState error title="Experimento indisponível nesta seleção" description="Confira o site, o insight e os filtros ou escolha outro experimento do quadro." />}
     </>}
   </div>;
 }
