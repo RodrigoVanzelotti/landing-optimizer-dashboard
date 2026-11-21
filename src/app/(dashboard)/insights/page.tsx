@@ -13,6 +13,7 @@ import { DataState } from '@/components/data-state';
 
 interface Suggestion {
   id: string;
+  model: string;
   kind: string;
   riskLevel: string;
   expectedImpact: string | null;
@@ -30,7 +31,6 @@ export default function InsightsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
   const { siteId, loading: sitesLoading, error: sitesError } = useSites();
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -39,7 +39,7 @@ export default function InsightsPage(): React.ReactElement {
     setLoading(true); setError(false);
     api
       .get<Suggestion[]>(`/sites/${id}/ai/suggestions`)
-      .then(setSuggestions)
+      .then(items => setSuggestions(items.filter(item => item.model !== 'synthetic-demo' && !item.payload.title?.startsWith('[MOCK]'))))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
   }
@@ -47,21 +47,6 @@ export default function InsightsPage(): React.ReactElement {
   useEffect(() => {
     if (siteId) load(siteId);
   }, [siteId]);
-
-  async function analyze(): Promise<void> {
-    if (!siteId) return;
-    setBusy(true);
-    setMsg(null);
-    try {
-      const r = await api.post<{ count: number; score: number }>(`/sites/${siteId}/ai/analyze`);
-      setMsg(`Sugestões geradas: ${r.count} · pontuação da página: ${r.score}/100`);
-      load(siteId);
-    } catch (e) {
-      setMsg(`Não foi possível concluir a análise: ${(e as Error).message}`);
-    } finally {
-      setBusy(false);
-    }
-  }
 
   async function materialize(id: string): Promise<void> {
     try {
@@ -78,11 +63,6 @@ export default function InsightsPage(): React.ReactElement {
       <PageHeader
         title="Insights de IA"
         description="Publicação exige aprovação."
-        action={editable ?
-          <Button onClick={analyze} disabled={busy || !siteId}>
-            {busy ? 'Analisando…' : 'Executar análise'}
-          </Button> : undefined
-        }
       />
       {msg ? <p className="mb-4 text-sm text-muted-foreground">{msg}</p> : null}
 
@@ -91,7 +71,7 @@ export default function InsightsPage(): React.ReactElement {
         : !siteId ? <DataState title="Primeiro, conecte seu site" description="A análise precisa de um site cadastrado para gerar propostas de melhoria." href="/sites" action="Ir para sites" />
         : loading ? <DataState loading title="Consultando sugestões…" />
         : suggestions.length === 0 ? (
-        <DataState title="Suas próximas ideias vão aparecer aqui" description={editable ? 'Execute uma análise para buscar oportunidades. Se ainda não houver sugestões, confira a instalação do código de rastreamento e aguarde mais interações dos visitantes.' : 'Um editor ou administrador pode executar uma análise. As sugestões geradas ficarão disponíveis aqui para consulta.'} />
+        <DataState title="Seus insights aparecerão aqui" description="Os insights serão gerados conforme os dados do seu site forem recebidos. Mantenha o código de rastreamento instalado para coletar as interações dos visitantes." />
       ) : (
         <div className="grid gap-3">
           {suggestions.map((s) => (

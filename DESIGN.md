@@ -57,6 +57,10 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Navigation and data presentation
 
+- Insights hides demonstration results and the manual generation button for now.
+  Use **Gerar insights** when that action returns. A registered site without real
+  insights shows the message about generation as visitor data is ingested.
+
 - Site installation keeps publication below goals, asks for confirmation and
   shows a local notice after successful edits on that screen. CSP is the final
   collapsed disclosure. This UI does not change API publication or save behavior.
