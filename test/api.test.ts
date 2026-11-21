@@ -18,9 +18,9 @@ describe('api request bodies', () => {
   });
 
   it('does not send JSON content type for a bodyless POST', async () => {
-    const fetchMock = mockFetch({ count: 1, score: 75 });
+    const fetchMock = mockFetch({ approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: null, experiments: [] });
 
-    await api.post('/sites/site-1/ai/analyze');
+    await api.post('/ai/suggestions/insight-1/approve');
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     expect(init.body).toBeUndefined();

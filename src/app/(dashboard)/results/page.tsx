@@ -1,6 +1,7 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { api, type Experiment, type VariantResult } from '@/lib/api';
 import { Card, Badge } from '@/components/ui/card';
 import { BarChart } from '@/components/bar-chart';
@@ -10,6 +11,15 @@ import { formatPct } from '@/lib/utils';
 import { useSites } from '@/lib/use-sites';
 
 export default function ResultsPage() {
+  return <Suspense fallback={<DataState loading title="Carregando resultados…" />}><ResultsContent /></Suspense>;
+}
+
+function ResultsContent() {
+  const requested = useSearchParams().get('experiment');
+  return <ExperimentResults key={requested ?? 'all'} requested={requested} />;
+}
+
+function ExperimentResults({ requested }: { requested: string | null }) {
   const { siteId } = useSites();
   const [experiments, setExperiments] = useState<Experiment[] | null>(null);
   const [selected, setSelected] = useState('');
@@ -20,10 +30,10 @@ export default function ResultsPage() {
     let active = true;
     setError(false);
     api.get<Experiment[]>(`/experiments?siteId=${encodeURIComponent(siteId)}`).then(list => {
-      if (active) { setExperiments(list); setSelected(current => current || list[0]?.id || ''); }
+      if (active) { setExperiments(list); setSelected(current => current || (requested && list.some(exp => exp.id === requested) ? requested : requested ? '' : list[0]?.id || '')); }
     }).catch(() => { if (active) setError(true); });
     return () => { active = false; };
-  }, [attempt, siteId]);
+  }, [attempt, siteId, requested]);
   useEffect(() => {
     if (!selected) return;
     let active = true;
@@ -43,6 +53,7 @@ export default function ResultsPage() {
     {error ? <DataState error title="Resultados indisponíveis" description="Tente novamente." onRetry={() => setAttempt(n => n + 1)} />
       : !experiments ? <DataState loading title="Carregando experimentos…" />
       : !experiments.length ? <DataState title="Nenhum experimento" description="Crie um teste para comparar variantes." href="/experiments" action="Ver experimentos" />
+      : !selected ? <DataState error title="Experimento indisponível neste site" description="Selecione um experimento para consultar os resultados." />
       : !results ? <DataState loading title="Carregando resultados…" />
       : !results.some(row => row.exposures > 0) ? <DataState title="Sem exposições" description="Confira a execução do teste e a instalação do código de rastreamento." href={`/experiments?review=${encodeURIComponent(selected)}`} action="Conferir experimento" />
       : <>

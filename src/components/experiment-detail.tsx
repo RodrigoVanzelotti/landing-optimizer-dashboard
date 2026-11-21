@@ -4,12 +4,13 @@ import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
 import { useCallback, useEffect, useId, useState } from 'react';
+import Link from 'next/link';
 
 import { api, type ConversionGoal } from '@/lib/api';
 import { Card, CardTitle, Badge } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { DataState } from '@/components/data-state';
-import { experimentStatusLabels, experimentTypeLabels, changeOpLabels } from '@/lib/experiments';
+import { experimentStatusLabels, experimentTypeLabels, changeOpLabels, experimentExpiry } from '@/lib/experiments';
 import { goalKindLabels } from '@/lib/goals';
 
 
@@ -28,7 +29,12 @@ interface Variant {
   changes: Change[];
 }
 interface ExperimentDetail {
+  createdAt: string;
+  expiresAt?: string | null;
+  expired?: boolean;
+  startedAt?: string | null;
   siteId: string;
+  insightId?: string | null;
   primaryGoalId: string | null;
   id: string;
   name: string;
@@ -42,14 +48,14 @@ interface ExperimentDetail {
 
 /** Lifecycle actions available per status (mirrors the API state machine). */
 const ACTIONS: Record<string, { label: string; action: string; variant?: 'destructive' | 'outline' }[]> = {
-  draft: [{ label: 'Enviar para revisão', action: 'submit' }],
-  ai_suggested: [{ label: 'Enviar para revisão', action: 'submit' }],
+  draft: [{ label: 'Enviar para revisão', action: 'submit' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
+  ai_suggested: [{ label: 'Enviar para revisão', action: 'submit' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
   pending_review: [
     { label: 'Aprovar', action: 'approve' },
-    { label: 'Rejeitar', action: 'reject', variant: 'destructive' },
+    { label: 'Negar', action: 'reject', variant: 'destructive' },
   ],
-  approved: [{ label: 'Iniciar', action: 'start' }],
-  scheduled: [{ label: 'Iniciar agora', action: 'start' }],
+  approved: [{ label: 'Iniciar', action: 'start' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
+  scheduled: [{ label: 'Iniciar agora', action: 'start' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
   running: [
     { label: 'Pausar', action: 'pause', variant: 'outline' },
     { label: 'Concluir', action: 'complete' },
@@ -123,11 +129,15 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
   if (error && !exp) return <DataState error title="Não foi possível abrir o experimento" description="Tente novamente para consultar a proposta." onRetry={() => { void load().catch((e: Error) => setError(e.message)); }} />;
   if (!exp) return <DataState loading title="Carregando proposta e variantes…" />;
 
-  const actions = editable ? ACTIONS[exp.status] ?? [] : [];
+  const expires = experimentExpiry(exp);
+  const expired = exp.expired || (expires !== null && expires <= Date.now());
+  const actions = editable && !expired ? ACTIONS[exp.status] ?? [] : [];
 
   return (
     <div>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{exp.name}</h2>{exp.hypothesis && <p className="mt-2 break-words text-sm text-muted-foreground">{exp.hypothesis}</p>}</div><Badge>{experimentStatusLabels[exp.status] ?? exp.status}</Badge></header>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{exp.name}</h2>{exp.hypothesis && <p className="mt-2 break-words text-sm text-muted-foreground">{exp.hypothesis}</p>}</div><Badge>{expired ? 'Vencido' : experimentStatusLabels[exp.status] ?? exp.status}</Badge></header>
+      {expired && <p role="status" className="mb-4 text-sm">Esta proposta venceu após 7 dias sem iniciar. Ela foi preservada para consulta. Aprove um novo insight para receber experimentos atuais.</p>}
+      {exp.insightId && <p className="mb-4 text-sm">Origem: <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">ver insight de IA de origem</Link></p>}
 
       <div className="mb-4 flex flex-wrap gap-2">
         {actions.map((a) => (
@@ -162,7 +172,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
           Os resultados contam cada sessão uma vez por variante após a exposição, para a meta selecionada.
           Sem uma meta principal, os resultados incluem todas as metas de conversão.
         </p>
-        {editable && ['draft', 'ai_suggested'].includes(exp.status) ? (
+        {editable && !expired && ['draft', 'ai_suggested'].includes(exp.status) ? (
           <form onSubmit={saveGoal} className="mt-3 flex flex-wrap items-end gap-3">
             <div className="flex min-w-0 flex-1 basis-60 flex-col gap-1">
               <label htmlFor={goalInputId} className="text-sm">Meta</label>

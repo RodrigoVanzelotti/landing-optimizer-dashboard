@@ -6,18 +6,20 @@ import InsightsPage from '../src/app/(dashboard)/insights/page';
 import { api } from '../src/lib/api';
 import type { InsightSuggestion } from '../src/lib/api';
 
-const state = vi.hoisted(() => ({ siteId: 'site', role: 'admin' }));
+const state = vi.hoisted(() => ({ siteId: 'site', role: 'admin', insightId: '' }));
+vi.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(state.insightId ? { insight: state.insightId } : {}) }));
 vi.mock('../src/lib/session', () => ({ useSession: () => ({ role: state.role }) }));
 vi.mock('../src/lib/use-sites', () => ({ useSites: () => ({ siteId: state.siteId, loading: false, error: null }) }));
 vi.mock('../src/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
 let host: HTMLDivElement, root: Root;
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
-  state.siteId = 'site'; state.role = 'admin';
+  state.siteId = 'site'; state.role = 'admin'; state.insightId = '';
   host = document.createElement('div'); root = createRoot(host);
+  vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-21T13:00:00Z'));
   vi.mocked(api.get).mockResolvedValue([]);
 });
-afterEach(async () => { await act(async () => root.unmount()); vi.resetAllMocks(); });
+afterEach(async () => { await act(async () => root.unmount()); vi.restoreAllMocks(); vi.resetAllMocks(); });
 
 it.each(['admin', 'viewer'])('explains generation as data arrives for a registered site without insights (%s)', async role => {
   state.role = role;
@@ -28,7 +30,7 @@ it.each(['admin', 'viewer'])('explains generation as data arrives for a register
 });
 
 it('hides seeded demonstrations and preserves real insights and experiment actions', async () => {
-  const suggestion = { id: 'real', model: 'production', kind: 'cta', riskLevel: 'low', experimentId: null, payload: { title: 'Insight real', selector: '#cta', proposedValue: 'Solicitar contato' } };
+  const suggestion = { id: 'real', model: 'production', kind: 'cta', riskLevel: 'low', approvedAt: null, experiments: [], payload: { title: 'Insight real', selector: '#cta', proposedValue: 'Solicitar contato' } };
   vi.mocked(api.get).mockResolvedValue([
     { ...suggestion, id: 'demo-model', model: 'synthetic-demo', payload: { title: 'Resultado de demonstração' } },
     { ...suggestion, id: 'stub-model', model: 'stub-v1', payload: { title: 'Fallback de demonstração' } },
@@ -40,7 +42,7 @@ it('hides seeded demonstrations and preserves real insights and experiment actio
   expect(host.textContent).not.toContain('Resultado de demonstração');
   expect(host.textContent).not.toContain('[MOCK]');
   expect(host.textContent).not.toContain('Fallback de demonstração');
-  expect([...host.querySelectorAll('button')].map(button => button.textContent?.trim())).toEqual(['Criar experimento']);
+  expect([...host.querySelectorAll('button')].map(button => button.textContent?.trim())).toEqual(['Aprovar insight']);
 });
 
 const period = {
@@ -50,7 +52,7 @@ const period = {
 };
 const clickKpi = { key: 'ctaClicksPerView', label: 'Cliques em CTA / visualização', value: 0.2, previousValue: 0.1, unit: 'ratio' as const, numerator: 20, denominator: 100, definition: 'Eventos de clique divididos por visualizações; não representa visitantes únicos.' };
 function insight(id: string, payload: InsightSuggestion['payload']): InsightSuggestion {
-  return { id, model: 'production', kind: 'cta', riskLevel: 'low', experimentId: null, expectedImpact: null, payload: { title: `Insight ${id}`, detail: 'Hipótese para testar.', ...payload } };
+  return { id, model: 'production', kind: 'cta', riskLevel: 'low', approvedAt: null, experimentsReadyAt: null, experiments: [], expectedImpact: null, payload: { title: `Insight ${id}`, detail: 'Hipótese para testar.', ...payload } };
 }
 
 it('renders different evidence blocks for each insight and exposes calculations interactively', async () => {
@@ -97,8 +99,11 @@ it('distinguishes missing values, true zero and partial coverage without showing
   expect(host.textContent).not.toContain('Período anterior:');
 });
 
-it('prevents repeat clicks while creating an experiment and links to the resulting draft', async () => {
-  const item = insight('actionable', { selector: '#cta', proposedValue: 'Conhecer planos', kpis: [clickKpi] });
+it('records approval, explains the 24-hour preparation and lists delivered approved experiments after a read refresh', async () => {
+  const item = insight('actionable', { experimentProposals: [
+    { name: 'Texto do botão', selector: '#cta', proposedValue: 'Conhecer planos' },
+    { name: 'Título principal', selector: '#title', proposedValue: 'Resultado esperado' },
+  ], kpis: [clickKpi] });
   vi.mocked(api.get).mockResolvedValue([item]);
   let complete: (value: unknown) => void = () => {};
   vi.mocked(api.post).mockImplementation(() => new Promise(resolve => { complete = resolve; }));
@@ -106,11 +111,64 @@ it('prevents repeat clicks while creating an experiment and links to the resulti
   const button = host.querySelector<HTMLButtonElement>('button')!;
   await act(async () => { button.click(); });
   expect(button.disabled).toBe(true);
-  expect(button.textContent).toContain('Criando experimento');
-  button.click(); expect(api.post).toHaveBeenCalledExactlyOnceWith('/ai/suggestions/actionable/materialize');
-  vi.mocked(api.get).mockResolvedValue([{ ...item, experimentId: 'experiment' }]);
-  await act(async () => complete({ experimentId: 'experiment' }));
-  expect(host.querySelector('a[href="/experiments?review=experiment"]')?.textContent).toBe('Ver experimento');
+  expect(button.textContent).toContain('Aprovando insight');
+  expect(host.textContent).toContain('os experimentos serão preparados em até 24 horas');
+  button.click(); expect(api.post).toHaveBeenCalledExactlyOnceWith('/ai/suggestions/actionable/approve');
+  await act(async () => complete({ approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: null, experiments: [] }));
+  expect(host.textContent).toContain('Insight aprovado');
+  expect(host.textContent).toContain('Seus experimentos estão sendo preparados');
+  expect(host.textContent).toContain('já aprovados e prontos para iniciar');
+  expect(host.querySelector('section[aria-label="Experimentos deste insight"]')).toBeNull();
+  vi.mocked(api.get).mockResolvedValue([{ ...item, approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: '2026-11-21T13:00:00Z', experiments: [
+    { id: 'first', name: 'Texto do botão', status: 'approved' },
+    { id: 'second', name: 'Título principal', status: 'approved' },
+  ] }]);
+  await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+  expect(host.querySelector('button')).toBeNull();
+  expect(host.querySelector('a[href="/experiments?insight=actionable&review=first"]')?.textContent).toBe('Texto do botão');
+  expect(host.querySelector('a[href="/experiments?insight=actionable&review=second"]')?.textContent).toBe('Título principal');
+  expect(host.querySelector('a[href="/experiments?insight=actionable"]')).not.toBeNull();
+  expect(api.get).toHaveBeenCalledTimes(2);
+  expect(api.post).toHaveBeenCalledOnce();
+});
+
+it('can approve an informational insight for later preparation without inventing immediate experiments', async () => {
+  vi.mocked(api.get).mockResolvedValue([insight('informational', { kpis: [clickKpi] })]);
+  vi.mocked(api.post).mockResolvedValue({ approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: null, experiments: [] });
+  await act(async () => root.render(React.createElement(InsightsPage)));
+  expect(host.textContent).toContain('os experimentos serão preparados em até 24 horas');
+  await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+  expect(host.textContent).toContain('Seus experimentos estão sendo preparados');
+  expect(host.querySelector('section[aria-label="Experimentos deste insight"]')).toBeNull();
+});
+
+it('keeps a failed approval pending and allows another attempt', async () => {
+  vi.mocked(api.get).mockResolvedValue([insight('pending', { selector: '#cta', proposedValue: 'Novo texto' })]);
+  vi.mocked(api.post).mockRejectedValue(new Error('Sem conexão'));
+  await act(async () => root.render(React.createElement(InsightsPage)));
+  await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Sem conexão');
+  expect(host.textContent).toContain('Aguardando aprovação');
+  expect(host.querySelector<HTMLButtonElement>('button')!.disabled).toBe(false);
+});
+
+it('loads a linked insight directly even when it would be outside the latest results', async () => {
+  state.insightId = 'origin';
+  vi.mocked(api.get).mockResolvedValue([{ ...insight('origin', {}), approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: '2026-11-21T13:00:00Z', experiments: [{ id: 'experiment', name: 'Experimento do insight', status: 'approved' }] }]);
+  await act(async () => root.render(React.createElement(InsightsPage)));
+  expect(api.get).toHaveBeenCalledWith('/sites/site/ai/suggestions?insightId=origin');
+  expect(host.textContent).toContain('Experimento do insight');
+  expect(host.querySelector('a[href="/insights"]')?.textContent).toBe('Ver todos os insights');
+});
+
+it('does not offer manual insight generation to editors', async () => {
+  state.role = 'editor';
+  vi.mocked(api.get).mockResolvedValue([insight('pending', {})]);
+  await act(async () => root.render(React.createElement(InsightsPage)));
+  expect([...host.querySelectorAll('button')].map(button => button.textContent)).toEqual(['Aprovar insight']);
+  expect(host.textContent).not.toContain('Gerar insights');
+  expect(host.textContent).not.toContain('Run Analysis');
+  expect(api.post).not.toHaveBeenCalled();
 });
 
 it('lets viewers inspect evidence without exposing experiment creation', async () => {

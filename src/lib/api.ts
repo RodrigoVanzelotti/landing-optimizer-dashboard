@@ -171,9 +171,13 @@ export interface Experiment {
   status: string;
   type: string;
   siteId: string;
+  insightId?: string | null;
   allocation: number;
   riskScore: number;
   createdAt: string;
+  expiresAt?: string | null;
+  expired?: boolean;
+  startedAt?: string | null;
 }
 
 export interface Overview {
@@ -253,12 +257,21 @@ export interface InsightSuggestion {
   kind: string;
   riskLevel: string;
   expectedImpact: string | null;
-  experimentId: string | null;
+  approvedAt: string | null;
+  experimentsReadyAt: string | null;
+  experiments: { id: string; name: string; status: string }[];
   payload: {
     title?: string;
     detail?: string;
     selector?: string;
     proposedValue?: string;
+    experimentProposals?: {
+      name?: string;
+      type?: 'copy' | 'cta' | 'headline';
+      selector: string;
+      proposedValue: string;
+      originalValue?: string;
+    }[];
     kpis?: InsightKpi[];
     designContext?: {
       selector: string;

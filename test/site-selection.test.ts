@@ -4,12 +4,13 @@ import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SessionContext } from '../src/lib/session';
 import { SitesProvider, useSites } from '../src/lib/use-sites';
-import { SiteScope } from '../src/components/site-navigation';
+import { SiteNavigation, SiteScope } from '../src/components/site-navigation';
 import InsightsPage from '../src/app/(dashboard)/insights/page';
 import { api, type Site } from '../src/lib/api';
 
 vi.mock('../src/lib/api', () => ({ api: { get: vi.fn(), put: vi.fn() } }));
-vi.mock('next/navigation', () => ({ usePathname: () => '/insights', useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
+const navigation = vi.hoisted(() => ({ push: vi.fn(), replace: vi.fn() }));
+vi.mock('next/navigation', () => ({ usePathname: () => '/insights', useSearchParams: () => new URLSearchParams(), useRouter: () => navigation }));
 const sites = [{ id: 'a', name: 'Site A' }, { id: 'b', name: 'Site B' }] as Site[];
 const user = { id: 'user', tenantId: 'tenant', name: 'User', email: 'user@example.com', role: 'viewer' as const };
 let host: HTMLDivElement, root: Root;
@@ -38,6 +39,12 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); vi.resetAllMocks(); });
 
 describe('shared site context', () => {
+  it('clears the origin insight filter when selecting a different site', async () => {
+    await act(async () => root.render(React.createElement(App, null, React.createElement(SiteNavigation))));
+    const select = host.querySelector<HTMLSelectElement>('#active-site')!;
+    await act(async () => { select.value = 'a'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(navigation.replace).toHaveBeenCalledWith('/insights');
+  });
   it('starts with the account favorite, preserves manual selection across page changes and resets for another account', async () => {
     await act(async () => root.render(React.createElement(App)));
     expect(host.querySelector('#selected')?.textContent).toBe('b');

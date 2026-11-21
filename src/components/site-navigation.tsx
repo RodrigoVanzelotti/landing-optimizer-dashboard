@@ -23,7 +23,7 @@ export function SiteNavigation() {
         onChange={event => {
           selectSite(event.target.value);
           if (installId) router.push(`/sites/${event.target.value}`);
-          else if (pathname === '/experiments') router.replace('/experiments');
+          else if (pathname === '/experiments' || pathname === '/insights') router.replace(pathname);
         }} className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         {!current && <option value="">{loading ? 'Carregando sites…' : error ? 'Sites indisponíveis' : 'Nenhum site cadastrado'}</option>}
         {sites.map(site => <option key={site.id} value={site.id}>{site.name}{site.id === favoriteSiteId ? ' · Favorito' : ''}</option>)}

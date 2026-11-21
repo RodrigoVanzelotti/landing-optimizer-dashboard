@@ -57,14 +57,22 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 
 ## Navigation and data presentation
 
-- Insights hides demonstration results and the manual generation button for now.
-  Use **Gerar insights** when that action returns. A registered site without real
+- Insights hides demonstration results and has no manual generation action.
+  Generation throughput belongs to the API/IA layers and will be defined later.
+  A registered site without real
   insights shows the message about generation as visitor data is ingested.
   Insight cards render optional KPI, captured-element and expected-impact blocks
   only when supplied. Measured KPI values and periods come from the API snapshot;
   model interpretations and expected impact are hypotheses. Expandable evidence
   exposes definitions, denominators and valid prior-period comparisons. Legacy
   insights without evidence say so; never attach today's metrics to old records.
+  Approving an insight authorizes preparation of its experiments, which must be
+  ready within 24 hours and inherit the insight's approval. No second experiment
+  approval is required. Show preparation, readiness and overdue states in plain
+  language without implementation details. Approval never creates placeholder
+  experiments or starts/publishes a test. Cards list every linked experiment;
+  Experiments filters by origin, shows preparation status and links back to the
+  insight. Refreshing status only reads data and never generates insights.
 
 - Site installation keeps publication below goals, asks for confirmation and
   shows a local notice after successful edits on that screen. CSP is the final
@@ -120,10 +128,22 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   files and errors that preserve prior selections. PDFs are converted locally
   into visual references; never reuse DOM coordinates on a print layout. Hide
   overlay controls on captures without element positions and retain metrics below.
-- Experiments owns the list, pending-review queue and inline review. Keep review
-  selection in the URL so deep links and browser back continue to work. Expand
-  details as an accordion directly under the selected row, without inserting a
-  separate detail area above the list. Keep visited details when collapsing.
+- Experiments uses a five-stage board: Aguardando aprovação, Em experimentação,
+  Resultados disponíveis, Vencidos and Negados. Approved proposals awaiting a start
+  stay in the first stage with an explicit Aprovado · Pronto para iniciar label;
+  they never require another approval. Paused live tests stay with ongoing tests;
+  completed and rolled-back tests retain their actual status under results.
+  Proposals expire seven elapsed days after experiment creation, before their
+  first start; approval and scheduling never extend this deadline. Historical
+  records stay readable, while the API blocks expired mutations and starts.
+  Existing running tests and results never expire. Refusal remains distinct from
+  expiry and is available before starting, including for approved proposals.
+  Keep search, stage, type, risk, origin, creation-period and ordering controls
+  above the board. Combine filters, expose counts, clear them without losing the
+  source insight, and preserve applied filters/review selection in the URL.
+  Keep horizontal board scrolling local on desktop; stack stages on mobile.
+  Expand selected details at full content width below the board, preserving
+  visited details when collapsing. Results cards link to that experiment's results.
 - In-page tabs update browser history without navigating/remounting the page.
   Mount each panel on its first visit, then keep it hidden when inactive so forms,
   filters, loaded data and viewer controls survive tab changes. Reset site-scoped
