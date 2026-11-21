@@ -236,6 +236,52 @@ export interface GuardrailView {
   updatedAt: string | null;
 }
 
+export interface InsightKpi {
+  key: string;
+  label: string;
+  value: number | null;
+  unit: 'count' | 'ratio' | 'milliseconds';
+  definition: string;
+  previousValue?: number | null;
+  numerator?: number;
+  denominator?: number;
+}
+
+export interface InsightSuggestion {
+  id: string;
+  model: string;
+  kind: string;
+  riskLevel: string;
+  expectedImpact: string | null;
+  experimentId: string | null;
+  payload: {
+    title?: string;
+    detail?: string;
+    selector?: string;
+    proposedValue?: string;
+    kpis?: InsightKpi[];
+    designContext?: {
+      selector: string;
+      pagePath: string;
+      capturedAt: string;
+      text?: string;
+      tag?: string;
+      role?: string;
+      observation?: string;
+    };
+    analysisPeriod?: {
+      from: string;
+      to: string;
+      timezone: 'UTC';
+      observedFrom: string;
+      partial: boolean;
+      sessions: number;
+      pageViews: number;
+      comparison?: { from: string; to: string };
+    };
+  };
+}
+
 /* ------------------------------ heatmap types ----------------------------- */
 
 /** Document-space bounding box [x, y, width, height] in CSS pixels. */

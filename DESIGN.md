@@ -60,6 +60,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 - Insights hides demonstration results and the manual generation button for now.
   Use **Gerar insights** when that action returns. A registered site without real
   insights shows the message about generation as visitor data is ingested.
+  Insight cards render optional KPI, captured-element and expected-impact blocks
+  only when supplied. Measured KPI values and periods come from the API snapshot;
+  model interpretations and expected impact are hypotheses. Expandable evidence
+  exposes definitions, denominators and valid prior-period comparisons. Legacy
+  insights without evidence say so; never attach today's metrics to old records.
 
 - Site installation keeps publication below goals, asks for confirmation and
   shows a local notice after successful edits on that screen. CSP is the final
