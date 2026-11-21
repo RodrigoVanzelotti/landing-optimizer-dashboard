@@ -7,6 +7,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import { api, ApiRequestError, type ConversionGoal, type GoalKind } from '@/lib/api';
 import { Card, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { goalKindLabels } from '@/lib/goals';
 
 type UrlOp = 'exact' | 'prefix' | 'contains' | 'regex';
@@ -23,6 +24,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
   const editable = canEdit(useSession().role);
   const [goals, setGoals] = useState<ConversionGoal[]>([]);
   const [name, setName] = useState('');
+  const [isFavorite, setIsFavorite] = useState(false);
   const [kind, setKind] = useState<GoalKind>('event');
   const [urlOp, setUrlOp] = useState<UrlOp>('exact');
   const [urlPath, setUrlPath] = useState('');
@@ -68,11 +70,13 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       await api.post<ConversionGoal>(`/sites/${siteId}/goals`, {
         name: name.trim(),
         kind,
+        isFavorite,
         ...(matcher ? { matcher } : {}),
       });
       setNotice('Meta adicionada. Novos eventos correspondentes serão contados como conversões.');
       onChanged();
       setName('');
+      setIsFavorite(false);
       setUrlPath('');
       setSelector('');
       load();
@@ -92,6 +96,18 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
     } catch (e) {
       setError(errorMessage(e));
     }
+  }
+
+  async function favorite(goal: ConversionGoal): Promise<void> {
+    if (busy) return;
+    setBusy(true); setError(null); setNotice('');
+    try {
+      await api.patch(`/sites/${siteId}/goals/${goal.id}`, { isFavorite: !goal.isFavorite });
+      setGoals(current => current.map(item => ({ ...item, isFavorite: item.id === goal.id ? !goal.isFavorite : false })));
+      setNotice(goal.isFavorite ? 'Meta favorita removida.' : 'Meta favorita definida. Ela será selecionada por padrão na visão geral deste site.');
+      onChanged();
+    } catch (e) { setError(errorMessage(e)); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -120,12 +136,13 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
               >
                 <div className="min-w-0 break-words text-sm">
                   <span className="font-medium">{g.name}</span>{' '}
+                  {g.isFavorite && <span className="text-primary">· Favorita </span>}
                   <span className="text-muted-foreground">· {goalKindLabels[g.kind]}</span>
                   {summary ? <span className="text-muted-foreground"> · {summary}</span> : null}
                 </div>
-                {editable && <Button size="sm" variant="destructive" onClick={() => remove(g.id)}>
+                {editable && <div className="flex flex-wrap gap-2"><Button className="h-11" size="sm" variant="outline" disabled={busy} aria-pressed={!!g.isFavorite} onClick={() => void favorite(g)}>{g.isFavorite ? 'Remover favorita' : 'Definir como favorita'}</Button><Button size="sm" className="h-11" variant="destructive" disabled={busy} onClick={() => remove(g.id)}>
                   Excluir
-                </Button>}
+                </Button></div>}
               </div>
             );
           })
@@ -201,6 +218,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
           {kind === 'url' ? 'Identifica visitas pelo caminho da URL, sem parâmetros de consulta ou fragmentos. Use uma página real de sucesso, em vez de uma âncora de contato.' : null}
           {kind === 'form_submit' ? 'Conta tentativas de envio, incluindo solicitações que falham depois. Deixe o seletor vazio para incluir qualquer formulário rastreado ou use o seletor exato de data-lo-id.' : null}
         </p>
+        <Checkbox id={`${fieldId}-favorite`} checked={isFavorite} onChange={setIsFavorite} className="min-h-11 w-full" label="Usar como meta favorita deste site na visão geral" />
         <Button type="submit" disabled={busy}>
           {busy ? 'Adicionando…' : 'Adicionar meta'}
         </Button>

@@ -189,6 +189,21 @@ export interface Overview {
 }
 
 export type AnalyticsTimeframe = '7d' | '30d' | '6m' | '1y';
+export interface ImpactTotals {
+  control: { exposures: number; conversions: number; rate: number | null };
+  variants: { exposures: number; conversions: number; rate: number | null };
+  gainPp: number | null;
+}
+export interface ExperimentImpactReport {
+  goal: { id: string; name: string; isFavorite: boolean };
+  timeframe: AnalyticsTimeframe;
+  range: { from: string; to: string; previousFrom: string; previousTo: string };
+  coverage: { availableFrom: string; currentComplete: boolean; previousComplete: boolean };
+  current: ImpactTotals; previous: ImpactTotals;
+  series: { from: string; to: string; values: ImpactTotals | null }[];
+  excludedExposures: number;
+  experiments: (ImpactTotals & { id: string; name: string; status: string; startedAt: string; endedAt: string | null; partial: boolean })[];
+}
 export interface ReportMetrics {
   pageViews: number; sessions: number; ctaClicks: number; conversions: number;
   formSubmits: number; formStarts: number; formCompletions: number;
@@ -222,6 +237,7 @@ export interface ConversionGoal {
   id: string;
   siteId: string;
   name: string;
+  isFavorite?: boolean;
   kind: GoalKind;
   matcher: Record<string, unknown>;
   createdAt: string;

@@ -107,6 +107,18 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   same form and page. Prioritize completion rate and sessions without observed
   submission; do not describe raw event counts as users or confirmed exits.
   Metric definitions and research: [Overview analytics](docs/OVERVIEW_ANALYTICS.md).
+- Overview also compares observed conversion rates for experiment controls and
+  variants, using the selected site and the shared analysis period. A site-wide
+  favorite conversion goal initializes the objective selector; a manual choice
+  survives period changes. Editors can set that favorite on goal creation or from
+  existing goals. Each site has at most one favorite, shared across its team.
+  Show period-weighted control/variant rates, their observed difference in p.p.
+  and changes against the preceding equal-duration period when coverage permits.
+  The chart accumulates exposures/conversions within the period, counting a
+  conversion on its actual date. Hover/focus/tap markers explain starts and ends
+  and link to the experiment. Running results are provisional. Never present a
+  sum of experiment lifts as an observed page rate or reconstruct an original
+  page baseline from changing experiment controls. See the counting rules below.
 - Future heatmap direction: place annotations based on observed data directly
   over the page image, anchored to the relevant element or region. Each annotation
   should cite its metric, period and sample size, distinguish observations from
@@ -144,6 +156,12 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   Keep horizontal board scrolling local on desktop; stack stages on mobile.
   Expand selected details at full content width below the board, preserving
   visited details when collapsing. Results cards link to that experiment's results.
+- Results cites the selected experiment's source insight with its title, recorded
+  approval date and a direct link, including before exposures exist. Missing legacy
+  origins and failed reads are explicit. Statistical comparisons label control
+  cells Referência; unavailable variant comparisons remain distinct. Definitions
+  explain relative lift, percentage points and p-values without implying a
+  probability that the variant is better.
 - In-page tabs update browser history without navigating/remounting the page.
   Mount each panel on its first visit, then keep it hidden when inactive so forms,
   filters, loaded data and viewer controls survive tab changes. Reset site-scoped

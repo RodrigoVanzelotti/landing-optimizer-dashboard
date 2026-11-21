@@ -9,6 +9,7 @@ import { DataState } from '@/components/data-state';
 import { BarChart } from '@/components/bar-chart';
 import { ConversionDrivers } from '@/components/conversion-drivers';
 import { TrendChart, dateSpan, metricValue, reportDate } from '@/components/trend-chart';
+import { ExperimentImpact } from '@/components/experiment-impact';
 
 export function OverviewAnalytics({ siteId, timeframe, onTimeframeChange, refreshKey }: { siteId: string; timeframe: AnalyticsTimeframe; onTimeframeChange: (value: AnalyticsTimeframe) => void; refreshKey: number }) {
   const [resource, setResource] = useState<{ data?: AnalyticsReport; error?: boolean; scope?: string }>({});
@@ -58,6 +59,7 @@ export function OverviewAnalytics({ siteId, timeframe, onTimeframeChange, refres
       <h2 className="text-xl font-semibold tracking-tight">Indicadores</h2>
       <div className="w-full shrink-0 sm:w-52"><label htmlFor="overview-timeframe" className="mb-2 block text-sm font-medium">Período</label><select id="overview-timeframe" value={timeframe} onChange={event => onTimeframeChange(event.target.value as AnalyticsTimeframe)} className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm">{Object.entries(timeframeLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
     </div>
+    <ExperimentImpact siteId={siteId} timeframe={timeframe} refreshKey={refreshKey} />
     {resource.scope === scope && resource.error ? <DataState error title="Resultados indisponíveis" description="Confira a conexão e tente novamente." onRetry={retry} />
       : !report || !current || !previous ? <DataState loading title="Carregando indicadores…" /> : <>
         <p className="mb-4 text-xs text-muted-foreground">{dateSpan(report.range.from, report.range.to)} · comparado a {dateSpan(report.range.previousFrom, report.range.previousTo)}</p>

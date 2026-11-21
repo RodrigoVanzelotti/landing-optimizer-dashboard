@@ -1,5 +1,58 @@
 # Overview analytics
 
+## Experiment contribution to the client's objective
+
+The site comes from the dashboard header. A conversion-goal selector defaults to
+the site's favorite goal, falling back to its first goal. A user's manual selection
+survives timeframe changes; changing sites resets it. Editors can choose the
+site-wide favorite while creating a goal or on an existing goal. This is a shared
+site setting, not a personal preference. The database enforces at most one favorite
+per site; ordinary goal creation never replaces it.
+
+`GET /analytics/experiment-impact?siteId=<uuid>&goalId=<uuid>&timeframe=7d|30d|6m|1y`
+checks tenant, site and objective ownership before reading behavioral data. It
+includes running, paused, completed and rolled-back experiments that actually
+started, with that primary goal or without an assigned primary goal. All exposed
+non-control variants contribute; the chart does not select only winners or hide
+negative effects. Ongoing/paused test results are explicitly provisional.
+
+- The control line is the observed reference cohort of these experiments. It is
+  not a preserved version of the original page. The second line is the observed
+  conversion rate of their variants. Both use one percentage scale. This records
+  the user's choice of observed rates plus a p.p. gain instead of adding individual
+  experiment effects into a synthetic cumulative improvement.
+- A session contributes only when assigned to one experiment and one variant in
+  the available current/prior analysis window. Repeated exposures to that same
+  assignment count once. Sessions exposed to multiple experiments or variants are
+  excluded, including assignments to experiments outside the compatible-goal set;
+  the report discloses the excluded exposure count. No session identifiers leave
+  the API.
+- The denominator enters the curve on the first exposure date. The first valid
+  conversion for the selected goal enters on the date it occurred, after exposure
+  and before the experiment's end and that exposure period's exclusive end.
+  A conversion in the next analysis period never rewrites the earlier period.
+  Historical chart points never receive conversions that occurred later.
+- Each point uses cumulative retained counts within the selected period, rather
+  than an average of daily percentages. KPIs use total period conversions divided
+  by total valid exposures. Difference = (variant rate − control rate) × 100 p.p.
+  Current-minus-prior rate deltas are also p.p.; the gain KPI's delta is the
+  current difference minus the prior difference. Missing denominators are unknown,
+  not zero. These observed rates do not by themselves establish causal impact or
+  statistical significance, and individual experiment lifts are never summed.
+- The same complete UTC days and four timeframes as the rest of Overview apply.
+  Seven-/30-day charts have daily points; longer periods have weekly points.
+  Coverage begins after complete days of site/goal availability and retained event
+  history. Unavailable buckets are gaps; partial current/prior coverage disables
+  deltas. The favorite does not change an experiment's fixed primary objective.
+- Start/end markers retain actual timestamps, expose period-level rates and
+  provisional status, and link to `/experiments?review=<id>`. Mouse, touch and
+  keyboard access and an exact-value table are provided. Nearby markers group
+  together on narrow/long-range charts so their touch targets never overlap;
+  the summary preserves every event's date and experiment link.
+
+The feature adds no IA processing, automatic analysis action, publishing change,
+new tracking event or change to experiment execution.
+
 The first journey prioritizes **form started → form submitted**, as requested.
 It uses existing events and anonymous session IDs; no new tracking, identity,
 database schema, retention policy or dependency is introduced.

@@ -46,7 +46,7 @@ describe('dashboard transfer', () => {
       coverage: { currentComplete: true, previousComplete: false, availableFrom: '2026-09-15T00:00:00Z' },
       current: metrics, previous: metrics, series: [], events: [{ event: 'page_view', count: 1000 }], sections: [],
     };
-    vi.mocked(api.get).mockResolvedValue(report);
+    vi.mocked(api.get).mockImplementation(async path => path.endsWith('/goals') ? [] : report);
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');
     const root = createRoot(container);

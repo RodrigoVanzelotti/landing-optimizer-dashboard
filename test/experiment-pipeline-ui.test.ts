@@ -84,3 +84,52 @@ it('opens results for the linked experiment instead of silently selecting anothe
   expect(host.querySelector<HTMLSelectElement>('#result-experiment')!.value).toBe('completed');
   expect(api.get).not.toHaveBeenCalledWith('/analytics/experiments/approved/results');
 });
+
+it('cites the approved source insight even before the experiment has exposures', async () => {
+  const initial = vi.mocked(api.get).getMockImplementation()!;
+  vi.mocked(api.get).mockImplementation(path => path === '/sites/site/ai/suggestions?insightId=origin'
+    ? Promise.resolve([{ id: 'origin', approvedAt: '2026-11-20T12:00:00Z', payload: { title: 'Esclarecer o benefício da chamada' } }]) : initial(path));
+  window.history.replaceState(null, '', '/results?experiment=completed');
+  await act(async () => root.render(React.createElement(ResultsPage)));
+  const citation = host.querySelector('[aria-label="Insight de origem"]')!;
+  expect(citation.querySelector('a')?.getAttribute('href')).toBe('/insights?insight=origin');
+  expect(citation.textContent).toContain('Esclarecer o benefício da chamada');
+  expect(citation.textContent).toContain('Aprovado em');
+  expect(citation.querySelector('time')?.dateTime).toBe('2026-11-20T12:00:00Z');
+  expect(host.textContent).toContain('Sem exposições');
+});
+
+it('labels the control as reference, keeps missing variant comparisons distinct and explains the statistics', async () => {
+  const initial = vi.mocked(api.get).getMockImplementation()!;
+  vi.mocked(api.get).mockImplementation(path => path.startsWith('/analytics/experiments/') ? Promise.resolve({ variants: [
+    { variantId: 'control', isControl: true, exposures: 100, conversions: 10, conversionRate: .1, lift: null, pValue: null, significant: false },
+    { variantId: 'better', isControl: false, exposures: 100, conversions: 12, conversionRate: .12, lift: .2, pValue: .032, significant: true },
+    { variantId: 'missing', isControl: false, exposures: 0, conversions: 0, conversionRate: 0, lift: null, pValue: null, significant: false },
+  ] }) : initial(path));
+  window.history.replaceState(null, '', '/results?experiment=completed');
+  await act(async () => root.render(React.createElement(ResultsPage)));
+  const rows = host.querySelectorAll('tbody tr');
+  expect([...rows[0].querySelectorAll('td')].map(cell => cell.textContent)).toEqual(['Referência', 'Referência', 'Referência']);
+  expect(rows[1].textContent).toContain('+20');
+  expect(rows[1].textContent).toContain('0,032');
+  expect(rows[2].querySelectorAll('td')[0].textContent).toBe('Indisponível');
+  expect(host.textContent).not.toMatch(/N\/A|N\/D/);
+  const definitions = host.querySelector('details')!;
+  expect(definitions.textContent).toContain('2 pontos percentuais');
+  expect(definitions.textContent).toContain('p-valor');
+  expect(definitions.textContent).toContain('não representa a probabilidade de a variante ser melhor');
+});
+
+it('isolates failed insight reads from metrics and clears the citation for experiments without an origin', async () => {
+  const initial = vi.mocked(api.get).getMockImplementation()!;
+  vi.mocked(api.get).mockImplementation(path => path.startsWith('/sites/site/ai/suggestions?') ? Promise.reject(new Error('Offline')) : initial(path));
+  items[0] = { ...items[0], insightId: null };
+  window.history.replaceState(null, '', '/results?experiment=completed');
+  await act(async () => root.render(React.createElement(ResultsPage)));
+  expect(host.textContent).toContain('Não foi possível carregar a referência do insight');
+  expect(host.textContent).toContain('Sem exposições');
+  const select = host.querySelector<HTMLSelectElement>('#result-experiment')!;
+  await act(async () => { select.value = 'approved'; select.dispatchEvent(new Event('change', { bubbles: true })); });
+  expect(host.querySelector('[aria-label="Insight de origem"]')).toBeNull();
+  expect(host.textContent).toContain('não possui um insight de IA vinculado');
+});
