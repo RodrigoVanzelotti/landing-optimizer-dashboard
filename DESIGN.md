@@ -171,6 +171,18 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   cells Referência; unavailable variant comparisons remain distinct. Definitions
   explain relative lift, percentage points and p-values without implying a
   probability that the variant is better.
+- Results presents every experiment as an expandable card instead of a selector.
+  Load site-scoped summaries together; search and ordering by relative effect,
+  exposure count or actual start date stay local. Missing start dates/effects sort
+  last. With multiple variants, show each variant's KPI and evidence; relative
+  effect ordering uses the highest observed variant effect, not a declared winner.
+  Expanding a card leads with a visual outcome before provenance, charts and the
+  statistics table. Significant improvements use the existing semantic green
+  palette and a success mark; significant declines use red. Positive point
+  estimates with inconclusive/insufficient evidence stay neutral. Missing samples
+  never display a spurious -100% effect; a zero control rate has no finite relative
+  effect. Ongoing results explicitly remain partial. Preserve experiment deep
+  links and visited accordion state. Do not aggregate wins into invented ROI.
 - In-page tabs update browser history without navigating/remounting the page.
   Mount each panel on its first visit, then keep it hidden when inactive so forms,
   filters, loaded data and viewer controls survive tab changes. Reset site-scoped

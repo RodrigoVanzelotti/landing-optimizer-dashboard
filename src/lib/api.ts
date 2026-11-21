@@ -231,6 +231,13 @@ export interface VariantResult {
   significant: boolean;
 }
 
+export interface ExperimentResult {
+  experimentId: string;
+  experiment: Experiment;
+  goal: { id: string; name: string } | null;
+  variants: (VariantResult & { name: string })[];
+}
+
 export type GoalKind = 'event' | 'url' | 'form_submit';
 
 export interface ConversionGoal {

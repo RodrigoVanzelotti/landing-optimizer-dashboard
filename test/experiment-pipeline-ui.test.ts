@@ -32,6 +32,7 @@ beforeEach(() => {
     if (path.startsWith('/experiments?')) return items;
     if (path.startsWith('/sites/site/ai/suggestions?')) return [{ id: 'origin', payload: { title: 'Insight de origem' } }];
     if (path === '/sites/site/goals') return [];
+    if (path.startsWith('/analytics/experiments/results?')) return items.map(experiment => ({ experimentId: experiment.id, experiment, goal: null, variants: [] }));
     if (path.startsWith('/analytics/experiments/')) return { variants: [] };
     return { ...items.find(item => path === `/experiments/${item.id}`), primaryGoalId: null, variants: [] };
   });
@@ -154,8 +155,8 @@ it('distinguishes no matches from loading and preserves direct links to a legacy
 it('opens results for the linked experiment instead of silently selecting another experiment', async () => {
   window.history.replaceState(null, '', '/results?experiment=completed');
   await act(async () => root.render(React.createElement(ResultsPage)));
-  expect(api.get).toHaveBeenCalledWith('/analytics/experiments/completed/results');
-  expect(host.querySelector<HTMLSelectElement>('#result-experiment')!.value).toBe('completed');
+  expect(api.get).toHaveBeenCalledWith('/analytics/experiments/results?siteId=site');
+  expect(host.querySelector('#result-card-completed a[role="button"]')?.getAttribute('aria-expanded')).toBe('true');
   expect(api.get).not.toHaveBeenCalledWith('/analytics/experiments/approved/results');
 });
 
@@ -175,11 +176,11 @@ it('cites the approved source insight even before the experiment has exposures',
 
 it('labels the control as reference, keeps missing variant comparisons distinct and explains the statistics', async () => {
   const initial = vi.mocked(api.get).getMockImplementation()!;
-  vi.mocked(api.get).mockImplementation(path => path.startsWith('/analytics/experiments/') ? Promise.resolve({ variants: [
-    { variantId: 'control', isControl: true, exposures: 100, conversions: 10, conversionRate: .1, lift: null, pValue: null, significant: false },
-    { variantId: 'better', isControl: false, exposures: 100, conversions: 12, conversionRate: .12, lift: .2, pValue: .032, significant: true },
-    { variantId: 'missing', isControl: false, exposures: 0, conversions: 0, conversionRate: 0, lift: null, pValue: null, significant: false },
-  ] }) : initial(path));
+  vi.mocked(api.get).mockImplementation(path => path.startsWith('/analytics/experiments/results?') ? Promise.resolve(items.map(experiment => ({ experimentId: experiment.id, experiment, goal: null, variants: [
+    { variantId: 'control', name: 'Controle', isControl: true, exposures: 100, conversions: 10, conversionRate: .1, lift: null, pValue: null, significant: false },
+    { variantId: 'better', name: 'Nova chamada', isControl: false, exposures: 100, conversions: 12, conversionRate: .12, lift: .2, pValue: .032, significant: true },
+    { variantId: 'missing', name: 'Sem dados', isControl: false, exposures: 0, conversions: 0, conversionRate: 0, lift: null, pValue: null, significant: false },
+  ] }))) : initial(path));
   window.history.replaceState(null, '', '/results?experiment=completed');
   await act(async () => root.render(React.createElement(ResultsPage)));
   const rows = host.querySelectorAll('tbody tr');
@@ -202,8 +203,7 @@ it('isolates failed insight reads from metrics and clears the citation for exper
   await act(async () => root.render(React.createElement(ResultsPage)));
   expect(host.textContent).toContain('Não foi possível carregar a referência do insight');
   expect(host.textContent).toContain('Sem exposições');
-  const select = host.querySelector<HTMLSelectElement>('#result-experiment')!;
-  await act(async () => { select.value = 'approved'; select.dispatchEvent(new Event('change', { bubbles: true })); });
-  expect(host.querySelector('[aria-label="Insight de origem"]')).toBeNull();
-  expect(host.textContent).toContain('não possui um insight de IA vinculado');
+  await act(async () => host.querySelector<HTMLAnchorElement>('#result-card-approved a[role="button"]')!.click());
+  expect(host.querySelector('#result-details-approved [aria-label="Insight de origem"]')).toBeNull();
+  expect(host.querySelector('#result-details-approved')?.textContent).toContain('não possui um insight de IA vinculado');
 });
