@@ -58,6 +58,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 ## Navigation and data presentation
 
 - Insights hides demonstration results and has no manual generation action.
+  Cards keep the hypothesis, status and risk visible; a native accordion reveals
+  evidence and linked experiments. Approval and rejection stay outside the accordion.
+  Editors and admins can reject pending insights through an inline confirmation.
+  Status filters distinguish accepted insights (including preparation), experiments
+  being prepared and rejected insights. Rejection preserves linked experiments.
   Generation throughput belongs to the API/IA layers and will be defined later.
   A registered site without real
   insights shows the message about generation as visitor data is ingested.

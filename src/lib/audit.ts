@@ -18,6 +18,7 @@ export const auditActionLabels: Record<string, string> = {
   'experiment.accepted': 'Mudança aceita', 'experiment.result_reopened': 'Encerramento sem evidência reavaliado',
   'ai.analyzed': 'Análise de IA realizada', 'ai.materialized': 'Sugestão de IA convertida em experimento',
   'ai.approved': 'Insight de IA aprovado',
+  'ai.rejected': 'Insight de IA rejeitado',
   'ai.experiments_ready': 'Experimentos do insight preparados',
   'snapshot.created': 'Captura de página registrada', 'snapshot.deleted': 'Captura de página excluída',
   'snapshot.pruned': 'Capturas removidas pela retenção',

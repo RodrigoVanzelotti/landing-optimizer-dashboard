@@ -304,6 +304,7 @@ export interface InsightSuggestion {
   riskLevel: string;
   expectedImpact: string | null;
   approvedAt: string | null;
+  rejectedAt?: string | null;
   experimentsReadyAt: string | null;
   experiments: { id: string; name: string; status: string }[];
   payload: {
