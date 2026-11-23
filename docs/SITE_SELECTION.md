@@ -1,16 +1,17 @@
 # Seleção de site e favorito pessoal
 
-O seletor **Site em visualização**, no topo do dashboard, é compartilhado pelas
+O seletor **Site ativo**, na sidebar abaixo da marca e do perfil, é compartilhado pelas
 páginas Visão geral, Insights de IA, Experimentos, Resultados e Diretrizes da marca.
 Não há mais seletores independentes nem escolha implícita do primeiro site em
 cada página. A seleção permanece ao navegar pela sidebar e pelas abas.
-Sites também mostra esse contexto; Clientes e Configurações continuam sendo
-áreas do workspace, sem filtro por site.
+A lista de Sites não mostra o seletor; os detalhes de instalação mantêm esse contexto.
+Clientes e Configurações continuam sendo áreas do workspace, sem filtro por site.
+Em telas pequenas, o seletor fica na região de navegação acima do conteúdo.
 
 Em Sites, a estrela escolhe o único favorito pessoal daquele workspace. Marcar
 outro substitui o anterior; clicar na estrela marcada remove o favorito.
 Uma nova sessão do dashboard abre o favorito, inclusive em outro dispositivo.
-Trocar o site no topo não altera o favorito. Sem favorito acessível, abre o primeiro
+Trocar o site na sidebar não altera o favorito. Sem favorito acessível, abre o primeiro
 site disponível. Essa preferência também está disponível para visualizadores,
 sem conceder permissão de editar o site.
 

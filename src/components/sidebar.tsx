@@ -9,6 +9,7 @@ import { useSession } from '@/lib/session';
 import { canViewRoute, roleLabels } from '@/lib/permissions';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import { SiteNavigation } from '@/components/site-navigation';
 
 export const NAV_ITEMS: { href: string; label: string }[] = [
   { href: '/overview', label: 'Visão geral' },
@@ -41,6 +42,7 @@ export function Sidebar(): React.ReactElement {
         Landing<span className="text-primary">Optimizer</span>
       </div>
       <p className="mb-4 px-2 text-xs text-muted-foreground">{roleLabels[user.role]}</p>
+      <SiteNavigation />
       <nav aria-label="Navegação principal" className="flex flex-row gap-0.5 overflow-x-auto md:flex-col">
         {NAV_ITEMS.filter((item) => canViewRoute(user.role, item.href, user.platformOwner)).map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + '/');

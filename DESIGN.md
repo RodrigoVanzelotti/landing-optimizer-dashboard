@@ -85,9 +85,12 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   shows a local notice after successful edits on that screen. CSP is the final
   collapsed disclosure. This UI does not change API publication or save behavior.
 
-- The shared top navigation selects the active site across Overview, AI insights,
-  Experiments (including the review queue), Results and Brand guardrails. It also
-  appears in Sites; account/workspace pages such as Clients and Settings remain
+- A compact selector below the brand/role in the sidebar selects the active site
+  across Overview, AI insights, Experiments (including the review queue), Results
+  and Brand guardrails. It shows the active name and domain without a page header
+  strip. It is hidden in the Sites list; installation details retain it.
+  On mobile it stays in the navigation region above the page content.
+  Account/workspace pages such as Clients and Settings remain
   workspace scoped. Preserve the current site during sidebar navigation. Reset
   site-specific content and pending reads on a site change; never render another
   site's experiment under the active site's name. Installation links explicitly
@@ -102,7 +105,7 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 - Overview has two URL-backed tabs: **Dados e indicadores** contains the site
   KPIs, event comparison and section performance; **Experiência do usuário**
   contains only **Veja a experiência na própria página**, with the snapshot heatmap.
-  The shared top selector scopes both tabs and stays selected when switching.
+  The shared sidebar selector scopes both tabs and stays selected when switching.
   **Dados e indicadores** uses one timeframe (last week, 30 days, six calendar
   months or one calendar year) for KPIs, temporal charts, events and sections.
   Compare adjacent ranges of equal duration, using complete UTC days and excluding

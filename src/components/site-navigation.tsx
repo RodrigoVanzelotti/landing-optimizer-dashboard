@@ -15,22 +15,23 @@ export function SiteNavigation() {
   const installId = pathname.startsWith('/sites/') ? pathname.split('/')[2] : null;
   const current = sites.find(site => site.id === (installId ?? siteId));
   useEffect(() => { if (installId) selectSite(installId); }, [installId, selectSite]);
-  if (pathname !== '/sites' && !installId && !siteRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) return null;
-  return <nav aria-label="Site em visualização" className="mb-8 flex min-w-0 flex-col gap-3 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
-    <div className="w-full min-w-0 sm:max-w-sm">
-      <label htmlFor="active-site" className="mb-2 block text-sm font-medium">Site em visualização</label>
+  if (!installId && !siteRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) return null;
+  return <nav aria-label="Site em visualização" className="mb-5 min-w-0 px-2">
+    <div className="min-w-0">
+      <label htmlFor="active-site" className="mb-1 block text-xs text-muted-foreground">Site ativo</label>
       <select id="active-site" value={current?.id ?? ''} disabled={loading || !!error || !sites.length}
+        title={current?.name}
         onChange={event => {
           selectSite(event.target.value);
           if (installId) router.push(`/sites/${event.target.value}`);
           else if (pathname === '/experiments' || pathname === '/insights') router.replace(pathname);
-        }} className="h-11 w-full min-w-0 rounded-md border border-border bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+        }} className="h-11 w-full min-w-0 truncate rounded-md border border-border bg-transparent pl-2 pr-6 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
         {!current && <option value="">{loading ? 'Carregando sites…' : error ? 'Sites indisponíveis' : 'Nenhum site cadastrado'}</option>}
         {sites.map(site => <option key={site.id} value={site.id}>{site.name}{site.id === favoriteSiteId ? ' · Favorito' : ''}</option>)}
       </select>
     </div>
-    {error || (preferenceError && pathname !== '/sites') ? <div role="alert" className="text-sm sm:max-w-sm"><p>{error ?? preferenceError}</p><Button variant="outline" className="mt-2 h-11" onClick={reload}>Tentar novamente</Button></div>
-      : current && <p className="min-w-0 break-all text-sm text-muted-foreground">{current.primaryDomain}</p>}
+    {error || preferenceError ? <div role="alert" className="mt-2 text-xs leading-relaxed"><p>{error ?? preferenceError}</p><Button variant="outline" className="mt-2 h-11" onClick={reload}>Tentar novamente</Button></div>
+      : current && <p title={current.primaryDomain} className="mt-1 truncate text-xs text-muted-foreground">{current.primaryDomain}</p>}
   </nav>;
 }
 
