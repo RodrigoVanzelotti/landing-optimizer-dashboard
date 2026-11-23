@@ -163,8 +163,10 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   insight. Persist selections in the URL; search replaces history while stage/view
   navigation adds history entries. Keep the search input mounted while typing.
   Keep horizontal board scrolling local on desktop; stack stages on mobile.
-  Expand selected details at full content width below the board, preserving
-  visited details when collapsing. Results cards link to that experiment's results.
+  Make the whole card open its details in a native modal near the top of the
+  viewport, with a dimmed, blurred backdrop. Close on outside click, Escape or the
+  top-right close button; contain keyboard focus and restore it to the card.
+  Preserve visited details when closing. Results cards link to that experiment's results.
 - Results cites the selected experiment's source insight with its title, recorded
   approval date and a direct link, including before exposures exist. Missing legacy
   origins and failed reads are explicit. Statistical comparisons label control

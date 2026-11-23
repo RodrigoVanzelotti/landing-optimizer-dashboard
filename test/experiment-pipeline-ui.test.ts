@@ -1,4 +1,5 @@
 import * as React from 'react';
+import './dialog-mock';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
@@ -132,6 +133,21 @@ it('switches between board and list while preserving stage and filters without n
   expect(vi.mocked(api.get).mock.calls.filter(([path]) => path.startsWith('/experiments?'))).toHaveLength(1);
 });
 
+it('hides the control card while preserving proposed variant changes', async () => {
+  const initial = vi.mocked(api.get).getMockImplementation()!;
+  vi.mocked(api.get).mockImplementation(path => path === '/experiments/approved' ? Promise.resolve({ ...base, primaryGoalId: null, variants: [
+    { id: 'control', name: 'Controle', isControl: true, weight: 0.5, changes: [] },
+    { id: 'variant', name: 'Nova chamada', isControl: false, weight: 0.5, changes: [{ id: 'change', selector: 'h1', op: 'text', originalValue: 'Antes', proposedValue: 'Depois' }] },
+  ] }) : initial(path));
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  const detail = host.querySelector('[aria-label="Detalhes de Título aprovado"]')!;
+  expect(detail.textContent).not.toContain('Controle');
+  expect(detail.textContent).not.toContain('Sem alterações: esta é a referência do teste.');
+  expect(detail.textContent).toContain('Nova chamada');
+  expect(detail.textContent).toContain('Depois');
+});
+
 it('keeps expired proposals readable while hiding their editing and starting actions', async () => {
   window.history.replaceState(null, '', '/experiments?review=expired');
   await render();
@@ -139,6 +155,46 @@ it('keeps expired proposals readable while hiding their editing and starting act
   expect(detail.textContent).toContain('Esta proposta venceu após 7 dias sem iniciar');
   expect([...detail.querySelectorAll('button')].map(button => button.textContent)).not.toContain('Iniciar');
   expect(detail.querySelector('form')).toBeNull();
+});
+
+it('opens a modal from the card and closes by X, outside click or Escape without reloading details', async () => {
+  await render();
+  const card = host.querySelector<HTMLAnchorElement>('#card-approved')!;
+  const modal = host.querySelector<HTMLDialogElement>('#experiment-dialog')!;
+  card.focus();
+  await act(async () => card.click());
+  expect(modal.open).toBe(true);
+  expect(modal.textContent).toContain(base.name);
+  expect(document.body.style.overflow).toBe('hidden');
+  const close = modal.querySelector<HTMLButtonElement>('[aria-label="Fechar detalhes do experimento"]')!;
+  expect(document.activeElement).toBe(close);
+  await act(async () => close.click());
+  expect(modal.open).toBe(false);
+  expect(window.location.search).toBe('');
+  expect(document.body.style.overflow).toBe('');
+  expect(document.activeElement).toBe(card);
+  await act(async () => card.click());
+  await act(async () => modal.querySelector('section')!.click());
+  expect(modal.open).toBe(true);
+  await act(async () => modal.click());
+  expect(modal.open).toBe(false);
+  await act(async () => card.click());
+  await act(async () => modal.dispatchEvent(new Event('cancel', { cancelable: true })));
+  expect(modal.open).toBe(false);
+  expect(vi.mocked(api.get).mock.calls.filter(([path]) => path === '/experiments/approved')).toHaveLength(1);
+});
+
+it('opens the modal from list cards and follows history selection changes', async () => {
+  window.history.replaceState(null, '', '/experiments?view=list');
+  await render();
+  await act(async () => host.querySelector<HTMLAnchorElement>('#card-running')!.click());
+  const modal = host.querySelector<HTMLDialogElement>('#experiment-dialog')!;
+  expect(modal.open).toBe(true);
+  expect(window.location.search).toContain('view=list');
+  await act(async () => window.history.replaceState(null, '', '/experiments?view=list'));
+  expect(modal.open).toBe(false);
+  await act(async () => window.history.replaceState(null, '', '/experiments?view=list&review=running'));
+  expect(modal.open).toBe(true);
 });
 
 it('distinguishes no matches from loading and preserves direct links to a legacy review selection', async () => {

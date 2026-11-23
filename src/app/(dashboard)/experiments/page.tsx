@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { api, type Experiment, type InsightSuggestion } from '@/lib/api';
@@ -31,6 +31,7 @@ function ExperimentsContent() {
 function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: string | null }) {
   const params = useSearchParams();
   const selected = params.get('review');
+  const dialog = useRef<HTMLDialogElement>(null);
   const [experiments, setExperiments] = useState<Experiment[] | null>(null);
   const [error, setError] = useState(false);
   const [originResource, setOriginResource] = useState<{ id?: string; data?: InsightSuggestion | null; error?: boolean }>({});
@@ -99,25 +100,36 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
   const selectedVisible = visible.some(exp => exp.id === selected);
   useEffect(() => {
     if (!selected || !ready || !selectedVisible) return;
-    const detail = document.getElementById(`experiment-${selected}`);
-    detail?.scrollIntoView?.({ block: 'start' });
-    detail?.focus({ preventScroll: true });
+    const modal = dialog.current;
+    if (!modal) return;
+    modal.showModal();
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      modal.close();
+      document.body.style.overflow = overflow;
+      document.getElementById(`card-${selected}`)?.focus({ preventScroll: true });
+    };
   }, [selected, ready, selectedVisible]);
+
+  function closeDetails() {
+    window.history.pushState(null, '', href());
+  }
 
   function experimentCard(exp: Experiment, list = false) {
     const column = experimentStage(exp, now);
     const open = selected === exp.id;
     const expiry = experimentExpiry(exp);
     const age = Math.max(0, Math.floor((now - Date.parse(exp.createdAt)) / 86_400_000));
-    return <li key={exp.id} className={`min-w-0 rounded-lg border bg-card p-3 ${open ? 'border-foreground' : 'border-border'}`}>
+    return <li key={exp.id} className={`relative min-w-0 rounded-lg border bg-card p-3 hover:border-foreground focus-within:border-foreground ${open ? 'border-foreground' : 'border-border'}`}>
       <div className={list ? 'grid items-center gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : ''}>
-        <div className="min-w-0"><h3><TabLink id={`card-${exp.id}`} href={href(open ? null : exp.id)} role="button" aria-expanded={open} aria-controls={`experiment-${exp.id}`} onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }} className="block min-h-11 break-words rounded py-2 text-left text-sm font-medium leading-snug underline-offset-4 hover:underline focus-visible:outline-primary">{exp.name}</TabLink></h3>
+        <div className="min-w-0"><h3><TabLink id={`card-${exp.id}`} href={href(exp.id)} role="button" aria-haspopup="dialog" aria-expanded={open} aria-controls="experiment-dialog" onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }} className="block min-h-11 break-words rounded py-2 text-left text-sm font-medium leading-snug after:absolute after:inset-0 after:rounded-lg focus-visible:outline-primary">{exp.name}</TabLink></h3>
           <p className="text-xs leading-relaxed text-muted-foreground">{experimentTypeLabels[exp.type] ?? 'Outro tipo'}</p>
         </div>
         <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 ${list ? 'sm:mt-0 sm:justify-end' : ''}`}>
           <Badge>{column === 'expired' ? 'Vencido' : exp.status === 'approved' ? 'Aprovado · Pronto para iniciar' : labels[exp.status] ?? exp.status}</Badge>
-          {exp.insightId && <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} aria-label={`Ver insight de IA de origem de ${exp.name}`} className="inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Insight de origem</Link>}
-          {column === 'results' && <Link href={`/results?experiment=${encodeURIComponent(exp.id)}`} className="inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Ver resultados</Link>}
+          {exp.insightId && <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} aria-label={`Ver insight de IA de origem de ${exp.name}`} className="relative z-10 inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Insight de origem</Link>}
+          {column === 'results' && <Link href={`/results?experiment=${encodeURIComponent(exp.id)}`} className="relative z-10 inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Ver resultados</Link>}
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-border pt-2 text-xs tabular-nums">
@@ -184,7 +196,14 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
           })}
         </div>
       </div> : <section aria-labelledby="experiment-list-title" className="rounded-lg border border-border bg-muted/40"><header className="flex min-h-11 items-center justify-between gap-3 border-b border-border bg-card px-4 py-3"><h2 id="experiment-list-title" className="text-sm font-medium">{selectedStage?.label ?? 'Todos os experimentos'}</h2><Badge className="tabular-nums">{visible.length}</Badge></header><ul className="space-y-2 p-3">{visible.map(exp => experimentCard(exp, true))}</ul>{!visible.length && <p className="px-4 pb-5 text-sm text-muted-foreground">Nenhum experimento nesta seleção.</p>}</section>}
-      {experiments!.map(exp => <div key={exp.id} id={`experiment-${exp.id}`} tabIndex={-1} className="focus-visible:outline-primary"><PersistentPanel active={selected === exp.id && selectedVisible}><section aria-label={`Detalhes de ${exp.name}`} className="mt-6 border-t border-border pt-6"><div className="mb-4 flex flex-wrap items-center justify-between gap-3"><p className="text-sm font-medium">Detalhes do experimento selecionado</p><TabLink href={href()} onClick={() => document.getElementById(`card-${exp.id}`)?.focus()} className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Fechar detalhes</TabLink></div><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel></div>)}
+      <dialog ref={dialog} id="experiment-dialog" aria-label="Detalhes do experimento" className="mx-auto mb-auto mt-4 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-4xl overflow-y-auto overscroll-contain rounded-xl bg-background p-0 text-foreground shadow-xl backdrop:bg-black/50 backdrop:backdrop-blur-sm sm:mt-8 sm:max-h-[calc(100dvh-4rem)]"
+        onCancel={event => { event.preventDefault(); closeDetails(); }}
+        onClick={event => { if (event.target === event.currentTarget) closeDetails(); }}>
+        <div className="p-4 sm:p-6">
+          <div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm font-medium">Detalhes do experimento</p><Button variant="ghost" autoFocus aria-label="Fechar detalhes do experimento" className="h-11 w-11 shrink-0 p-0" onClick={closeDetails}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m6 6 12 12M6 18 18 6" /></svg></Button></div>
+          {experiments!.map(exp => <PersistentPanel key={exp.id} active={selected === exp.id && selectedVisible}><section aria-label={`Detalhes de ${exp.name}`} className="min-w-0 break-words"><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel>)}
+        </div>
+      </dialog>
       {selected && !selectedVisible && <DataState error title="Experimento indisponível nesta seleção" description="Confira o site, o insight e os filtros ou escolha outro experimento do quadro." />}
     </>}
   </div>;

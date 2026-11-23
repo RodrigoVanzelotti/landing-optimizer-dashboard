@@ -190,11 +190,11 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
       </Card>
 
       <div className="grid gap-3">
-        {exp.variants.map((v) => (
+        {exp.variants.filter(v => !v.isControl).map((v) => (
           <Card key={v.id} className="shadow-none">
             <div className="mb-2 flex items-center justify-between">
               <CardTitle>
-                {v.name} {v.isControl ? '(controle)' : ''}
+                {v.name}
               </CardTitle>
               <span className="text-xs text-muted-foreground">peso {v.weight}</span>
             </div>
