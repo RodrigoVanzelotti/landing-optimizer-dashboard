@@ -15,7 +15,7 @@ export function SiteNavigation() {
   const installId = pathname.startsWith('/sites/') ? pathname.split('/')[2] : null;
   const current = sites.find(site => site.id === (installId ?? siteId));
   useEffect(() => { if (installId) selectSite(installId); }, [installId, selectSite]);
-  if (!installId && !siteRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) return null;
+  if (pathname !== '/sites' && !installId && !siteRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`))) return null;
   return <nav aria-label="Site em visualização" className="mb-5 min-w-0 px-2">
     <div className="min-w-0">
       <label htmlFor="active-site" className="mb-1 block text-xs text-muted-foreground">Site ativo</label>

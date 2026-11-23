@@ -1,5 +1,9 @@
 # Registro de atividades
 
+A exclusão permanente de um site é uma exceção à retenção do histórico: apaga
+os registros relacionados e mantém somente `site.deleted`, com administrador,
+data e ID do site, sem domínio, conteúdo ou métricas. Decisão aprovada pelo usuário.
+
 ## Consulta
 
 O registro carrega todo o histórico automaticamente ao abrir a aba, com **10

@@ -3,7 +3,7 @@
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { api, type Site } from '@/lib/api';
 import { useSites } from '@/lib/use-sites';
@@ -12,10 +12,16 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { normalizeSiteDomain } from '@/lib/site-domain';
+import { DeleteSiteDialog } from '@/components/delete-site-dialog';
 
 export default function SitesPage(): React.ReactElement {
-  const editable = canEdit(useSession().role);
-  const { sites, loading, error, addSite, selectSite, favoriteSiteId, favoriteBusy, preferenceError, setFavorite, reload } = useSites();
+  const { role } = useSession();
+  const editable = canEdit(role);
+  const { sites, loading, error, addSite, removeSite, selectSite, favoriteSiteId, favoriteBusy, preferenceError, setFavorite, reload } = useSites();
+  const [deleting, setDeleting] = useState<Site | null>(null);
+  const [deleted, setDeleted] = useState(false);
+  const deleteStatus = useRef<HTMLParagraphElement>(null);
+  useEffect(() => { if (deleted) deleteStatus.current?.focus(); }, [deleted]);
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -41,6 +47,7 @@ export default function SitesPage(): React.ReactElement {
   return (
     <div>
       <PageHeader title="Sites" description="Marque um favorito para abrir esse site por padrão em qualquer dispositivo." />
+      {deleted && <p ref={deleteStatus} tabIndex={-1} role="status" className="mb-4 text-sm">Site e dados excluídos. Os tokens e as chaves do site foram invalidados.</p>}
       {preferenceError && <div role="alert" className="mb-4 text-sm"><p>{preferenceError}</p><Button variant="outline" className="mt-2 h-11" onClick={reload} disabled={favoriteBusy}>Tentar novamente</Button></div>}
       <p role="status" className="mb-4 text-sm text-muted-foreground">{favoriteBusy ? 'Salvando favorito…' : favoriteSiteId ? `Site padrão: ${sites.find(site => site.id === favoriteSiteId)?.name ?? ''}` : 'Nenhum favorito definido. Marque a estrela de um site para usá-lo como padrão.'}</p>
 
@@ -94,10 +101,12 @@ export default function SitesPage(): React.ReactElement {
                 onClick={() => { void setFavorite(favoriteSiteId === site.id ? null : site.id); }}>
                 <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-5 w-5 ${favoriteSiteId === site.id ? 'fill-primary text-primary' : 'fill-none text-muted-foreground'}`} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z" /></svg>
               </Button>
+              {role === 'admin' && <Button type="button" variant="ghost" className="h-11 shrink-0 text-red-600" aria-label={`Excluir site: ${site.name}`} onClick={() => { setDeleted(false); setDeleting(site); }}>Excluir</Button>}
             </Card>
           ))}
         </div>
       )}
+      {deleting && role === 'admin' && <DeleteSiteDialog site={deleting} onClose={() => setDeleting(null)} onDeleted={() => { removeSite(deleting.id); setDeleting(null); setDeleted(true); }} />}
     </div>
   );
 }

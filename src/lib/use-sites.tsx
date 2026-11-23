@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, type Site } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
@@ -15,6 +15,7 @@ interface SitesContextValue {
   preferenceError: string | null;
   setFavorite: (id: string | null) => Promise<void>;
   addSite: (site: Site) => void;
+  removeSite: (id: string) => void;
   reload: () => void;
 }
 const SitesContext = createContext<SitesContextValue | null>(null);
@@ -26,6 +27,7 @@ export function SitesProvider({ children }: { children: ReactNode }) {
 }
 
 function SitesState({ children }: { children: ReactNode }) {
+  const removedIds = useRef(new Set<string>());
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +45,7 @@ function SitesState({ children }: { children: ReactNode }) {
     void Promise.allSettled([api.get<Site[]>('/sites'), api.get<{ favoriteSiteId: string | null }>('/auth/preferences')]).then(([list, preferences]) => {
       if (!active) return;
       if (list.status === 'rejected') { setError('Não foi possível carregar os sites. Tente novamente.'); setLoading(false); return; }
+      list.value = list.value.filter(site => !removedIds.current.has(site.id));
       const favorite = preferences.status === 'fulfilled' && list.value.some(site => site.id === preferences.value.favoriteSiteId) ? preferences.value.favoriteSiteId : null;
       if (preferences.status === 'rejected') setPreferenceError('Não foi possível consultar seu favorito. Tente novamente.');
       setSites(list.value); setFavoriteSiteId(favorite);
@@ -57,13 +60,19 @@ function SitesState({ children }: { children: ReactNode }) {
     setFavoriteBusy(true); setPreferenceError(null);
     try {
       const saved = await api.put<{ favoriteSiteId: string | null }>('/auth/preferences', { favoriteSiteId: id });
-      setFavoriteSiteId(saved.favoriteSiteId);
+      setFavoriteSiteId(saved.favoriteSiteId && removedIds.current.has(saved.favoriteSiteId) ? null : saved.favoriteSiteId);
     } catch {
       setPreferenceError('Não foi possível salvar seu favorito. Sua preferência anterior foi mantida. Tente novamente.');
     } finally { setFavoriteBusy(false); }
   }
 
-  return <SitesContext.Provider value={{ sites, loading, error, siteId: selected, selectSite, favoriteSiteId, favoriteBusy, preferenceError, setFavorite, addSite: site => { setSites(current => [site, ...current]); setSelected(current => current || site.id); }, reload }}>{children}</SitesContext.Provider>;
+  function removeSite(id: string) {
+    removedIds.current.add(id);
+    setSites(current => current.filter(site => site.id !== id));
+    setFavoriteSiteId(current => current === id ? null : current);
+  }
+  const siteId = sites.some(site => site.id === selected) ? selected : sites.find(site => site.id === favoriteSiteId)?.id ?? sites[0]?.id ?? '';
+  return <SitesContext.Provider value={{ sites, loading, error, siteId, selectSite, favoriteSiteId, favoriteBusy, preferenceError, setFavorite, addSite: site => { setSites(current => [site, ...current]); setSelected(current => current || site.id); }, removeSite, reload }}>{children}</SitesContext.Provider>;
 }
 
 export function useSites(): SitesContextValue {

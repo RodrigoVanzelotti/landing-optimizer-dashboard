@@ -32,6 +32,13 @@ it('replaces technical fetch failures with safe feedback without losing diagnost
 });
 
 describe('api request bodies', () => {
+  it('supports a deletion confirmation body and preserves bodyless DELETE callers', async () => {
+    const fetchMock = mockFetch({});
+    await api.del('/sites/site', { confirmation: 'example.test' });
+    expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: 'DELETE', body: '{"confirmation":"example.test"}' });
+    await api.del('/sites/site/origins/origin');
+    expect(fetchMock.mock.calls[1]?.[1]?.body).toBeUndefined();
+  });
   it('uses the dashboard origin and sends its refresh cookie', async () => {
     const fetchMock = mockFetch({ accessToken: 'renewed-access-token' });
     expect(await ensureSession()).toBe(true);

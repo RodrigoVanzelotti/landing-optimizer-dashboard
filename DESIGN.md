@@ -88,7 +88,7 @@ reference. Color and brand palette decisions are deferred; use the existing toke
 - A compact selector below the brand/role in the sidebar selects the active site
   across Overview, AI insights, Experiments (including the review queue), Results
   and Brand guardrails. It shows the active name and domain without a page header
-  strip. It is hidden in the Sites list; installation details retain it.
+  strip. The Sites list and installation details retain it.
   On mobile it stays in the navigation region above the page content.
   Account/workspace pages such as Clients and Settings remain
   workspace scoped. Preserve the current site during sidebar navigation. Reset
@@ -100,6 +100,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   available across devices. The favorite initializes a fresh dashboard session;
   manual site changes do not replace it. Replacing/removing it is a personal
   preference available to viewers too, without granting permission to edit sites.
+  Only administrators can delete a site, after typing its exact domain in a modal.
+  Explain permanent data removal, credential invalidation and removal of the site's
+  activity history. Retain only the deletion actor, date and site ID. Failed deletion
+  preserves confirmation and warns that cleanup may have partially completed.
+  Remove a deleted site from the shared selector and favorite immediately.
   Failed saves preserve the previous favorite and show recovery. Missing favorites
   fall back to the first accessible site. See [site selection](docs/SITE_SELECTION.md).
 - Overview has two URL-backed tabs: **Dados e indicadores** contains the site

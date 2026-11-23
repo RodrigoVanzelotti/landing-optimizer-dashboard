@@ -16,13 +16,16 @@ const sites = [{ id: 'a', name: 'Site A', primaryDomain: 'a.example.com' }, { id
 const user = { id: 'user', tenantId: 'tenant', name: 'User', email: 'user@example.com', role: 'viewer' as const };
 let host: HTMLDivElement, root: Root;
 function Controls() {
-  const { siteId, selectSite, favoriteSiteId, setFavorite, preferenceError } = useSites();
+  const { siteId, selectSite, favoriteSiteId, setFavorite, preferenceError, removeSite, reload } = useSites();
   return React.createElement('div', null,
     React.createElement('output', { id: 'selected' }, siteId), React.createElement('output', { id: 'favorite' }, favoriteSiteId),
     React.createElement('button', { onClick: () => selectSite('a') }, 'Select A'),
     React.createElement('button', { onClick: () => selectSite('b') }, 'Select B'),
     React.createElement('button', { onClick: () => selectSite('foreign') }, 'Select foreign'),
     React.createElement('button', { onClick: () => { void setFavorite('a'); } }, 'Favorite A'),
+    React.createElement('button', { onClick: () => removeSite('a') }, 'Remove A'),
+    React.createElement('button', { onClick: () => removeSite('b') }, 'Remove B'),
+    React.createElement('button', { onClick: reload }, 'Reload'),
     React.createElement('p', { role: 'alert' }, preferenceError));
 }
 function App({ account = user, children }: { account?: typeof user; children?: React.ReactNode }) {
@@ -41,6 +44,17 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); vi.resetAllMocks(); });
 
 describe('shared site context', () => {
+  it('removes a selected favorite immediately, chooses a remaining site and tolerates deleting the last site', async () => {
+    await act(async () => root.render(React.createElement(App)));
+    await click('Remove B');
+    expect(host.querySelector('#favorite')?.textContent).toBe('');
+    expect(host.querySelector('#selected')?.textContent).toBe('a');
+    await click('Reload'); // Even stale server/list responses cannot restore a locally deleted site.
+    expect(host.querySelector('#favorite')?.textContent).toBe('');
+    expect(host.querySelector('#selected')?.textContent).toBe('a');
+    await click('Remove A');
+    expect(host.querySelector('#selected')?.textContent).toBe('');
+  });
   it('places one labelled selector inside the sidebar and retains selection when navigating', async () => {
     await act(async () => root.render(React.createElement(App, null, React.createElement(Sidebar))));
     const select = host.querySelector<HTMLSelectElement>('#active-site')!;
@@ -56,7 +70,7 @@ describe('shared site context', () => {
     expect(host.querySelector('aside')?.textContent).toContain('a.example.com');
     expect(host.querySelector('#favorite')?.textContent).toBe('b');
   });
-  it.each(['/sites', '/settings', '/tenants'])('hides the selector in %s and restores the same site afterwards', async pathname => {
+  it.each(['/settings', '/tenants'])('hides the selector in %s and restores the same site afterwards', async pathname => {
     await act(async () => root.render(React.createElement(App, null, React.createElement(Sidebar))));
     await click('Select A');
     navigation.pathname = pathname;
@@ -65,6 +79,11 @@ describe('shared site context', () => {
     navigation.pathname = '/insights';
     await act(async () => root.render(React.createElement(App, null, React.createElement(Sidebar))));
     expect(host.querySelector<HTMLSelectElement>('#active-site')?.value).toBe('a');
+  });
+  it('keeps the selector visible on the Sites list', async () => {
+    navigation.pathname = '/sites';
+    await act(async () => root.render(React.createElement(App, null, React.createElement(Sidebar))));
+    expect(host.querySelector<HTMLSelectElement>('#active-site')?.value).toBe('b');
   });
   it('selects an installation link site and navigates to the new installation when switched', async () => {
     navigation.pathname = '/sites/a';
