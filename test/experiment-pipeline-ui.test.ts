@@ -13,12 +13,14 @@ vi.mock('next/navigation', async () => {
   return { useSearchParams: () => new URLSearchParams(useSyncExternalStore(subscribe, () => window.location.search, () => '')) };
 });
 vi.mock('../src/lib/use-sites', () => ({ useSites: () => ({ siteId: 'site' }) }));
-vi.mock('../src/lib/session', () => ({ useSession: () => ({ role: 'editor' }) }));
+const session = vi.hoisted(() => ({ role: 'editor' }));
+vi.mock('../src/lib/session', () => ({ useSession: () => ({ role: session.role }) }));
 vi.mock('../src/lib/api', () => ({ api: { get: vi.fn(), post: vi.fn() } }));
 let host: HTMLDivElement, root: Root;
 let items: Experiment[];
 const base: Experiment = { id: 'approved', name: 'Título aprovado', siteId: 'site', insightId: 'origin', status: 'approved', type: 'headline', riskScore: 15, allocation: 0.5, createdAt: '2026-11-20T12:00:00Z' };
 beforeEach(() => {
+  session.role = 'editor';
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.spyOn(Date, 'now').mockReturnValue(Date.parse('2026-11-21T12:00:00Z'));
   window.history.replaceState(null, '', '/experiments');
@@ -144,8 +146,76 @@ it('hides the control card while preserving proposed variant changes', async () 
   const detail = host.querySelector('[aria-label="Detalhes de Título aprovado"]')!;
   expect(detail.textContent).not.toContain('Controle');
   expect(detail.textContent).not.toContain('Sem alterações: esta é a referência do teste.');
-  expect(detail.textContent).toContain('Nova chamada');
+  expect(detail.textContent).toContain('Mudança proposta');
   expect(detail.textContent).toContain('Depois');
+});
+
+it.each(['admin', 'editor'])('lets %s approve a draft with one visible action and keeps approval separate from starting', async role => {
+  session.role = role;
+  items[0] = { ...base, status: 'draft' };
+  vi.mocked(api.post).mockImplementation(async path => {
+    items[0] = { ...items[0], status: path.endsWith('/submit') ? 'pending_review' : 'approved' };
+    return items[0];
+  });
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  const modal = host.querySelector<HTMLDialogElement>('#experiment-dialog')!;
+  const approve = [...modal.querySelectorAll('button')].find(button => button.textContent === 'Aprovar')!;
+  expect(approve.title).toContain('O teste ainda não será publicado');
+  expect(modal.textContent).not.toContain('Enviar para revisão');
+  expect([...modal.querySelectorAll('button')].some(button => button.textContent === 'Negar')).toBe(true);
+  await act(async () => approve.click());
+  expect(vi.mocked(api.post).mock.calls.map(([path]) => path)).toEqual(['/experiments/approved/submit', '/experiments/approved/approve']);
+  expect([...modal.querySelectorAll('button')].some(button => button.textContent === 'Iniciar')).toBe(true);
+});
+
+it.each(['ai_suggested', 'pending_review'])('offers approve and deny for %s and only submits when needed', async status => {
+  items[0] = { ...base, status };
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  const approve = [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Aprovar')!;
+  await act(async () => approve.click());
+  expect(api.post).toHaveBeenCalledWith('/experiments/approved/approve', expect.any(Object));
+  expect(vi.mocked(api.post).mock.calls.some(([path]) => path.endsWith('/submit'))).toBe(status === 'ai_suggested');
+});
+
+it('does not resubmit a draft when approval fails after submission', async () => {
+  items[0] = { ...base, status: 'draft' };
+  vi.mocked(api.post).mockResolvedValueOnce({}).mockRejectedValueOnce(new Error('Sem conexão')).mockResolvedValueOnce({});
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  const approve = () => [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Aprovar')!;
+  await act(async () => approve().click());
+  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Sem conexão');
+  await act(async () => approve().click());
+  expect(vi.mocked(api.post).mock.calls.map(([path]) => path)).toEqual(['/experiments/approved/submit', '/experiments/approved/approve', '/experiments/approved/approve']);
+});
+
+it.each(['admin', 'editor', 'viewer'])('enforces review actions for %s and explains denial on hover', async role => {
+  session.role = role;
+  items[0] = { ...base, status: 'pending_review' };
+  vi.spyOn(window, 'confirm').mockReturnValue(true);
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  const buttons = [...host.querySelectorAll<HTMLButtonElement>('dialog button')];
+  const deny = buttons.find(button => button.textContent === 'Negar');
+  expect(Boolean(deny)).toBe(role !== 'viewer');
+  expect(buttons.some(button => button.textContent === 'Aprovar')).toBe(role !== 'viewer');
+  if (deny) {
+    expect(deny.title).toContain('move o experimento para Negados');
+    await act(async () => deny.click());
+    expect(api.post).toHaveBeenCalledWith('/experiments/approved/reject', { reason: 'Rejeitado na revisão' });
+  } else expect(api.post).not.toHaveBeenCalled();
+});
+
+it('closes an experiment deep link to the complete pipeline including other insights', async () => {
+  items[1] = { ...items[1], insightId: 'another-insight' };
+  window.history.replaceState(null, '', '/experiments?review=approved');
+  await render();
+  await act(async () => host.querySelector<HTMLButtonElement>('[aria-label="Fechar detalhes do experimento"]')!.click());
+  expect(window.location.search).toBe('');
+  expect(host.querySelectorAll('[aria-label="Pipeline de experimentos"] h3')).toHaveLength(items.length);
+  expect(host.querySelector('#card-running')).not.toBeNull();
 });
 
 it('keeps expired proposals readable while hiding their editing and starting actions', async () => {

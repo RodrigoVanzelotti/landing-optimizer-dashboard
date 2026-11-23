@@ -71,8 +71,10 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   approval is required. Show preparation, readiness and overdue states in plain
   language without implementation details. Approval never creates placeholder
   experiments or starts/publishes a test. Cards list every linked experiment;
-  Experiments filters by origin, shows preparation status and links back to the
-  insight. Refreshing status only reads data and never generates insights.
+  Experiment links from Insights open that experiment's modal over the complete
+  pipeline, without adding an insight filter. Explicit origin filters remain
+  available. Experiments shows preparation status and links back to the insight.
+  Refreshing status only reads data and never generates insights.
 
 - Site installation keeps publication below goals, asks for confirmation and
   shows a local notice after successful edits on that screen. CSP is the final
@@ -167,6 +169,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   viewport, with a dimmed, blurred backdrop. Close on outside click, Escape or the
   top-right close button; contain keyboard focus and restore it to the card.
   Preserve visited details when closing. Results cards link to that experiment's results.
+  Unapproved proposals offer Aprovar and Negar to editors and administrators only;
+  approving a draft submits it for review internally before approval. Approval
+  never starts the test. Explain lifecycle actions with hover tooltips and accessible
+  descriptions. Label the hypothesis with a lightbulb and Mudança proposta with a
+  target icon; omit control cards from proposal details.
 - Results cites the selected experiment's source insight with its title, recorded
   approval date and a direct link, including before exposures exist. Missing legacy
   origins and failed reads are explicit. Statistical comparisons label control

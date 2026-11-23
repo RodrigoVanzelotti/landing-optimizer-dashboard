@@ -46,14 +46,20 @@ interface ExperimentDetail {
   variants: Variant[];
 }
 
-/** Lifecycle actions available per status (mirrors the API state machine). */
+const REVIEW_ACTIONS = [{ label: 'Aprovar', action: 'approve' }, { label: 'Negar', action: 'reject', variant: 'destructive' as const }];
+const actionDescriptions: Record<string, string> = {
+  approve: 'Aprova a mudança proposta e deixa o experimento pronto para iniciar. O teste ainda não será publicado.',
+  reject: 'Recusa a mudança proposta e move o experimento para Negados, sem iniciar o teste.',
+  start: 'Inicia o experimento e passa a exibir a mudança proposta para parte dos visitantes.',
+  pause: 'Pausa a exibição do experimento. Ele poderá ser retomado depois.',
+  complete: 'Encerra o teste e mantém os resultados disponíveis para consulta.',
+  rollback: 'Reverte a mudança do experimento para a versão de referência.',
+  kill: 'Interrompe imediatamente o experimento publicado.',
+};
 const ACTIONS: Record<string, { label: string; action: string; variant?: 'destructive' | 'outline' }[]> = {
-  draft: [{ label: 'Enviar para revisão', action: 'submit' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
-  ai_suggested: [{ label: 'Enviar para revisão', action: 'submit' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
-  pending_review: [
-    { label: 'Aprovar', action: 'approve' },
-    { label: 'Negar', action: 'reject', variant: 'destructive' },
-  ],
+  draft: REVIEW_ACTIONS,
+  ai_suggested: REVIEW_ACTIONS,
+  pending_review: REVIEW_ACTIONS,
   approved: [{ label: 'Iniciar', action: 'start' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
   scheduled: [{ label: 'Iniciar agora', action: 'start' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
   running: [
@@ -90,7 +96,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
   useEffect(() => { void load().catch((e: Error) => setError(e.message)); }, [load]);
 
   async function run(action: string): Promise<void> {
-    if (busy) return;
+    if (busy || !editable || !exp) return;
     if (['reject', 'rollback', 'kill', 'complete'].includes(action) && !window.confirm('Confirmar esta ação no experimento? Ela pode alterar a experiência publicada ou encerrar o teste.')) return;
     setBusy(true);
     setError(null);
@@ -101,6 +107,10 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
           : action === 'approve'
             ? { reason: 'Aprovado na revisão', checklist: { privacy: true, brand: true } }
             : undefined;
+      if (action === 'approve' && ['draft', 'ai_suggested'].includes(exp.status)) {
+        await api.post(`/experiments/${id}/submit`);
+        setExp(current => current ? { ...current, status: 'pending_review' } : current);
+      }
       await api.post(`/experiments/${id}/${action}`, body);
       onChanged();
       await load();
@@ -135,13 +145,47 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
 
   return (
     <div>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><div className="min-w-0"><h2 className="break-words text-xl font-semibold">{exp.name}</h2>{exp.hypothesis && <p className="mt-2 break-words text-sm text-muted-foreground">{exp.hypothesis}</p>}</div><Badge>{expired ? 'Vencido' : experimentStatusLabels[exp.status] ?? exp.status}</Badge></header>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><h2 className="min-w-0 break-words text-xl font-semibold">{exp.name}</h2><Badge>{expired ? 'Vencido' : experimentStatusLabels[exp.status] ?? exp.status}</Badge></header>
+      <section aria-label="Hipótese" className="mb-6">
+        <h3 className="flex items-center gap-2 text-sm font-semibold"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M9 18h6m-5 3h4M9 15c0-2-4-3-4-7a7 7 0 0 1 14 0c0 4-4 5-4 7v1H9z" /></svg>Hipótese</h3>
+        <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">{exp.hypothesis || 'Hipótese não informada para este experimento.'}</p>
+      </section>
+      <div className="mb-6 grid gap-3">
+        {exp.variants.filter(v => !v.isControl).map((v) => (
+          <Card key={v.id} className="shadow-none">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="flex items-center gap-2">
+                <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="11" cy="13" r="9" /><circle cx="11" cy="13" r="5" /><path d="m11 13 9-9m-4 0h4v4" /></svg>
+                Mudança proposta
+              </CardTitle>
+              <span className="text-xs text-muted-foreground">peso {v.weight}</span>
+            </div>
+            {v.changes.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma mudança foi detalhada para esta proposta.</p>
+            ) : (
+              <ul className="space-y-2">
+                {v.changes.map((c) => (
+                  <li key={c.id} className="rounded border border-border p-3 text-sm">
+                    <p className="break-all font-mono text-xs text-muted-foreground">
+                      {changeOpLabels[c.op] ?? 'Alteração'} · {c.selector}
+                    </p>
+                    {c.originalValue ? (
+                      <p className="mt-1 break-words line-through opacity-60">{c.originalValue}</p>
+                    ) : null}
+                    {c.proposedValue ? <p className="mt-0.5 break-words">{c.proposedValue}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+        ))}
+      </div>
       {expired && <p role="status" className="mb-4 text-sm">Esta proposta venceu após 7 dias sem iniciar. Ela foi preservada para consulta. Aprove um novo insight para receber experimentos atuais.</p>}
       {exp.insightId && <p className="mb-4 text-sm">Origem: <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">ver insight de IA de origem</Link></p>}
 
       <div className="mb-4 flex flex-wrap gap-2">
         {actions.map((a) => (
-          <Button key={a.action} className="h-11" variant={a.variant} disabled={busy} aria-busy={busy} onClick={() => run(a.action)}>
+          <Button key={a.action} className="h-11" variant={a.variant} disabled={busy} aria-busy={busy} title={actionDescriptions[a.action]} aria-description={actionDescriptions[a.action]} onClick={() => run(a.action)}>
             {a.label}
           </Button>
         ))}
@@ -188,36 +232,6 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
         {goals?.length === 0 ? <p className="mt-2 text-sm">Cadastre metas de conversão na página de instalação do site.</p> : null}
         <p role="status" className="mt-2 text-sm">{goalNotice}</p>
       </Card>
-
-      <div className="grid gap-3">
-        {exp.variants.filter(v => !v.isControl).map((v) => (
-          <Card key={v.id} className="shadow-none">
-            <div className="mb-2 flex items-center justify-between">
-              <CardTitle>
-                {v.name}
-              </CardTitle>
-              <span className="text-xs text-muted-foreground">peso {v.weight}</span>
-            </div>
-            {v.changes.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Sem alterações: esta é a referência do teste.</p>
-            ) : (
-              <ul className="space-y-2">
-                {v.changes.map((c) => (
-                  <li key={c.id} className="rounded border border-border p-3 text-sm">
-                    <p className="break-all font-mono text-xs text-muted-foreground">
-                      {changeOpLabels[c.op] ?? 'Alteração'} · {c.selector}
-                    </p>
-                    {c.originalValue ? (
-                      <p className="mt-1 break-words line-through opacity-60">{c.originalValue}</p>
-                    ) : null}
-                    {c.proposedValue ? <p className="mt-0.5 break-words">{c.proposedValue}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }

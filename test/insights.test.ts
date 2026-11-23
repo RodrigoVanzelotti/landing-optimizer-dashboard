@@ -125,9 +125,10 @@ it('records approval, explains the 24-hour preparation and lists delivered appro
   ] }]);
   await act(async () => host.querySelector<HTMLButtonElement>('button')!.click());
   expect(host.querySelector('button')).toBeNull();
-  expect(host.querySelector('a[href="/experiments?insight=actionable&review=first"]')?.textContent).toBe('Texto do botão');
-  expect(host.querySelector('a[href="/experiments?insight=actionable&review=second"]')?.textContent).toBe('Título principal');
-  expect(host.querySelector('a[href="/experiments?insight=actionable"]')).not.toBeNull();
+  expect(host.querySelector('a[href="/experiments?review=first"]')?.textContent).toBe('Texto do botão');
+  expect(host.querySelector('a[href="/experiments?review=second"]')?.textContent).toBe('Título principal');
+  expect(host.querySelector('a[href="/experiments"]')).not.toBeNull();
+  expect(host.querySelector('a[href*="/experiments?insight="]')).toBeNull();
   expect(api.get).toHaveBeenCalledTimes(2);
   expect(api.post).toHaveBeenCalledOnce();
 });

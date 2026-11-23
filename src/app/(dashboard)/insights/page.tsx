@@ -129,16 +129,16 @@ function InsightsContent({ insightId }: { insightId: string | null }): React.Rea
                 <InsightPreparationNotice approvedAt={s.approvedAt} />
                 <div className="mt-2 flex flex-wrap items-center gap-4">
                   <Button variant="outline" disabled={pendingId !== null} onClick={() => siteId && load(siteId)}>Atualizar situação</Button>
-                  <Link href={`/experiments?insight=${encodeURIComponent(s.id)}`} className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Acompanhar na aba Experimentos</Link>
+                  <Link href="/experiments" className="inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Acompanhar na aba Experimentos</Link>
                 </div>
               </>}
               {experiments.length > 0 && <section aria-label="Experimentos deste insight" className="mt-5 border-t border-border pt-4">
                 <h3 className="text-sm font-semibold">Experimentos deste insight ({experiments.length})</h3>
                 <ul className="mt-2 space-y-2">{experiments.map(experiment => <li key={experiment.id} className="flex flex-wrap items-center gap-3 text-sm">
-                  <Link href={`/experiments?insight=${encodeURIComponent(s.id)}&review=${encodeURIComponent(experiment.id)}`} className="inline-flex min-h-11 min-w-0 items-center break-words text-primary underline underline-offset-4 [overflow-wrap:anywhere]">{experiment.name}</Link>
+                  <Link href={`/experiments?review=${encodeURIComponent(experiment.id)}`} className="inline-flex min-h-11 min-w-0 items-center break-words text-primary underline underline-offset-4 [overflow-wrap:anywhere]">{experiment.name}</Link>
                   <Badge>{experimentStatusLabels[experiment.status] ?? experiment.status}</Badge>
                 </li>)}</ul>
-                <Link href={`/experiments?insight=${encodeURIComponent(s.id)}`} className="mt-2 inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Ver todos na aba Experimentos</Link>
+                <Link href="/experiments" className="mt-2 inline-flex min-h-11 items-center text-sm text-primary underline underline-offset-4">Ver todos na aba Experimentos</Link>
               </section>}
               {s.experimentsReadyAt && !experiments.length && <p className="mt-4 text-xs text-muted-foreground">A preparação foi concluída, mas nenhum experimento está disponível nesta lista.</p>}
             </Card>;
