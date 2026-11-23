@@ -7,11 +7,14 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import Link from 'next/link';
 
 import { api, type ConversionGoal } from '@/lib/api';
-import { Card, CardTitle, Badge } from '@/components/ui/card';
+import { Card, CardTitle } from '@/components/ui/card';
+import { ExperimentStatus } from '@/components/experiment-status';
+import { ExperimentResultSummary } from '@/components/experiment-result-summary';
 import { Button } from '@/components/ui/button';
 import { DataState } from '@/components/data-state';
-import { experimentStatusLabels, experimentTypeLabels, changeOpLabels, experimentExpiry } from '@/lib/experiments';
+import { experimentTypeLabels, changeOpLabels, experimentExpiry } from '@/lib/experiments';
 import { goalKindLabels } from '@/lib/goals';
+import { userErrorMessage } from '@/lib/errors';
 
 
 interface Change {
@@ -33,6 +36,7 @@ interface ExperimentDetail {
   expiresAt?: string | null;
   expired?: boolean;
   startedAt?: string | null;
+  resultState?: 'pending_validation' | 'ready';
   siteId: string;
   insightId?: string | null;
   primaryGoalId: string | null;
@@ -46,15 +50,14 @@ interface ExperimentDetail {
   variants: Variant[];
 }
 
-const REVIEW_ACTIONS = [{ label: 'Aprovar', action: 'approve' }, { label: 'Negar', action: 'reject', variant: 'destructive' as const }];
+const REVIEW_ACTIONS = [{ label: 'Aprovar e iniciar', action: 'approve' }, { label: 'Negar', action: 'reject', variant: 'destructive' as const }];
 const actionDescriptions: Record<string, string> = {
-  approve: 'Aprova a mudança proposta e deixa o experimento pronto para iniciar. O teste ainda não será publicado.',
+  approve: 'Aprova e inicia o experimento em uma ação. A mudança proposta será publicada para parte dos visitantes.',
   reject: 'Recusa a mudança proposta e move o experimento para Negados, sem iniciar o teste.',
   start: 'Inicia o experimento e passa a exibir a mudança proposta para parte dos visitantes.',
   pause: 'Pausa a exibição do experimento. Ele poderá ser retomado depois.',
-  complete: 'Encerra o teste e mantém os resultados disponíveis para consulta.',
-  rollback: 'Reverte a mudança do experimento para a versão de referência.',
-  kill: 'Interrompe imediatamente o experimento publicado.',
+  rollback: 'Descarta a mudança proposta, restaura a versão de referência e move o experimento para Negados.',
+  accept: 'Mantém a mudança escolhida para 100% dos visitantes elegíveis deste site e move o experimento para Mudanças aceitas.',
 };
 const ACTIONS: Record<string, { label: string; action: string; variant?: 'destructive' | 'outline' }[]> = {
   draft: REVIEW_ACTIONS,
@@ -64,15 +67,14 @@ const ACTIONS: Record<string, { label: string; action: string; variant?: 'destru
   scheduled: [{ label: 'Iniciar agora', action: 'start' }, { label: 'Negar', action: 'reject', variant: 'destructive' }],
   running: [
     { label: 'Pausar', action: 'pause', variant: 'outline' },
-    { label: 'Concluir', action: 'complete' },
-    { label: 'Reverter', action: 'rollback', variant: 'destructive' },
-    { label: 'Interromper imediatamente', action: 'kill', variant: 'destructive' },
+    { label: 'Rejeitar experimento', action: 'rollback', variant: 'destructive' },
   ],
   paused: [
     { label: 'Retomar', action: 'start' },
-    { label: 'Reverter', action: 'rollback', variant: 'destructive' },
+    { label: 'Rejeitar experimento', action: 'rollback', variant: 'destructive' },
   ],
-  completed: [{ label: 'Reverter', action: 'rollback', variant: 'destructive' }],
+  completed: [{ label: 'Manter mudança', action: 'accept' }, { label: 'Reverter mudança', action: 'rollback', variant: 'destructive' }],
+  accepted: [{ label: 'Reverter mudança', action: 'rollback', variant: 'destructive' }],
 };
 
 export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId: string; onChanged: () => void }): React.ReactElement {
@@ -83,6 +85,8 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
   const [busy, setBusy] = useState(false);
   const [goals, setGoals] = useState<ConversionGoal[] | null>(null);
   const [goalNotice, setGoalNotice] = useState('');
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  const [acceptedVariant, setAcceptedVariant] = useState('');
 
   const load = useCallback(async () => {
     setError(null);
@@ -93,15 +97,15 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
     catch { setGoals(null); setError('Não foi possível carregar as metas. Tente novamente antes de alterá-las.'); }
   }, [id, siteId]);
 
-  useEffect(() => { void load().catch((e: Error) => setError(e.message)); }, [load]);
+  useEffect(() => { void load().catch(error => setError(userErrorMessage(error))); }, [load]);
+  const refreshFromReport = useCallback(() => { void load().then(onChanged).catch(error => setError(userErrorMessage(error))); }, [load, onChanged]);
 
   async function run(action: string): Promise<void> {
-    if (busy || !editable || !exp) return;
-    if (['reject', 'rollback', 'kill', 'complete'].includes(action) && !window.confirm('Confirmar esta ação no experimento? Ela pode alterar a experiência publicada ou encerrar o teste.')) return;
+    if (busy || !editable || !exp || !actions.some(item => item.action === action) || (action === 'accept' && !chosenVariant)) return;
     setBusy(true);
     setError(null);
     try {
-      const body =
+      const body = action === 'accept' ? { variantId: chosenVariant } :
         action === 'reject'
           ? { reason: 'Rejeitado na revisão' }
           : action === 'approve'
@@ -112,10 +116,19 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
         setExp(current => current ? { ...current, status: 'pending_review' } : current);
       }
       await api.post(`/experiments/${id}/${action}`, body);
-      onChanged();
+      if (action === 'approve') {
+        setExp(current => current ? { ...current, status: 'approved' } : current);
+        await api.post(`/experiments/${id}/start`);
+      }
+      setPendingAction(null);
       await load();
+      onChanged();
     } catch (e) {
-      setError((e as Error).message);
+      let message = userErrorMessage(e);
+      try { await load(); }
+      catch { message += ' Não foi possível atualizar o estado. Recarregue a proposta antes de tentar novamente.'; }
+      setError(message);
+      onChanged();
     } finally {
       setBusy(false);
     }
@@ -132,20 +145,24 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
       await api.patch(`/experiments/${id}`, { primaryGoalId: goalId || null });
       setGoalNotice('Meta principal salva.');
       await load();
-    } catch (e) { setError((e as Error).message); }
+    } catch (e) { setError(userErrorMessage(e)); }
     finally { setBusy(false); }
   }
 
-  if (error && !exp) return <DataState error title="Não foi possível abrir o experimento" description="Tente novamente para consultar a proposta." onRetry={() => { void load().catch((e: Error) => setError(e.message)); }} />;
+  if (error && !exp) return <DataState error title="Não foi possível abrir o experimento" description="Tente novamente para consultar a proposta." onRetry={() => { void load().catch(error => setError(userErrorMessage(error))); }} />;
   if (!exp) return <DataState loading title="Carregando proposta e variantes…" />;
 
   const expires = experimentExpiry(exp);
   const expired = exp.expired || (expires !== null && expires <= Date.now());
-  const actions = editable && !expired ? ACTIONS[exp.status] ?? [] : [];
+  const actions = editable && !expired && exp.resultState !== 'pending_validation' ? ACTIONS[exp.status] ?? [] : [];
+  const proposals = exp.variants.filter(variant => !variant.isControl);
+  const chosenVariant = proposals.length === 1 ? proposals[0].id : proposals.some(variant => variant.id === acceptedVariant) ? acceptedVariant : '';
 
   return (
     <div>
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><h2 className="min-w-0 break-words text-xl font-semibold">{exp.name}</h2><Badge>{expired ? 'Vencido' : experimentStatusLabels[exp.status] ?? exp.status}</Badge></header>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3"><h2 className="min-w-0 break-words text-xl font-semibold">{exp.name}</h2><div role="status" aria-label="Estado do experimento" className="ml-auto"><ExperimentStatus experiment={exp} /></div></header>
+      {['running', 'paused', 'completed', 'accepted', 'rolled_back', 'killed'].includes(exp.status) && <ExperimentResultSummary key={`${id}-${exp.status}`} id={id} siteId={siteId} status={exp.status} onStateChanged={refreshFromReport} />}
+      {exp.resultState === 'pending_validation' && <p role="status" className="mb-4 text-sm text-muted-foreground">Este encerramento está sendo verificado. Se não houver evidência suficiente, o experimento ficará pausado para uma nova coleta.</p>}
       <section aria-label="Hipótese" className="mb-6">
         <h3 className="flex items-center gap-2 text-sm font-semibold"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><path d="M9 18h6m-5 3h4M9 15c0-2-4-3-4-7a7 7 0 0 1 14 0c0 4-4 5-4 7v1H9z" /></svg>Hipótese</h3>
         <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">{exp.hypothesis || 'Hipótese não informada para este experimento.'}</p>
@@ -158,7 +175,6 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 shrink-0"><circle cx="11" cy="13" r="9" /><circle cx="11" cy="13" r="5" /><path d="m11 13 9-9m-4 0h4v4" /></svg>
                 Mudança proposta
               </CardTitle>
-              <span className="text-xs text-muted-foreground">peso {v.weight}</span>
             </div>
             {v.changes.length === 0 ? (
               <p className="text-sm text-muted-foreground">Nenhuma mudança foi detalhada para esta proposta.</p>
@@ -183,14 +199,26 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
       {expired && <p role="status" className="mb-4 text-sm">Esta proposta venceu após 7 dias sem iniciar. Ela foi preservada para consulta. Aprove um novo insight para receber experimentos atuais.</p>}
       {exp.insightId && <p className="mb-4 text-sm">Origem: <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">ver insight de IA de origem</Link></p>}
 
+      {editable && exp.status === 'completed' && proposals.length > 1 && <div className="mb-4"><label htmlFor={`${goalInputId}-proposal`} className="mb-2 block text-sm font-medium">Mudança a manter</label><select id={`${goalInputId}-proposal`} value={acceptedVariant} onChange={event => setAcceptedVariant(event.target.value)} disabled={busy} className="min-h-11 w-full rounded-md border border-border bg-background px-3 text-sm"><option value="">Escolha uma mudança proposta</option>{proposals.map((variant, index) => <option key={variant.id} value={variant.id}>Mudança proposta {index + 1}</option>)}</select></div>}
       <div className="mb-4 flex flex-wrap gap-2">
         {actions.map((a) => (
-          <Button key={a.action} className="h-11" variant={a.variant} disabled={busy} aria-busy={busy} title={actionDescriptions[a.action]} aria-description={actionDescriptions[a.action]} onClick={() => run(a.action)}>
-            {a.label}
+          <Button key={a.action} id={`${goalInputId}-${a.action}`} className="h-11" variant={a.variant} disabled={busy || (a.action === 'accept' && !chosenVariant)} aria-busy={busy} title={actionDescriptions[a.action]} aria-description={actionDescriptions[a.action]} onClick={() => {
+            if (['reject', 'rollback', 'accept'].includes(a.action)) setPendingAction(a.action);
+            else void run(a.action);
+          }}>
+            {busy ? 'Processando…' : a.label}
           </Button>
         ))}
       </div>
-      {error ? <div role="alert" className="mb-4 text-sm"><p>{error}</p><Button variant="outline" className="mt-3 h-11" disabled={busy} onClick={() => { void load().catch((e: Error) => setError(e.message)); }}>Recarregar proposta</Button></div> : null}
+      {pendingAction && actions.some(item => item.action === pendingAction) && <section aria-labelledby={`${goalInputId}-confirmation`} className="mb-4 rounded-md border border-border bg-muted/40 p-4">
+        <h3 id={`${goalInputId}-confirmation`} className="text-sm font-semibold">{pendingAction === 'accept' ? 'Manter esta mudança para todos os visitantes elegíveis?' : pendingAction === 'reject' ? 'Negar este experimento?' : 'Descartar a mudança proposta?'}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{actionDescriptions[pendingAction]}</p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <Button autoFocus variant="outline" className="h-11" disabled={busy} onClick={() => { setPendingAction(null); document.getElementById(`${goalInputId}-${pendingAction}`)?.focus(); }}>Cancelar</Button>
+          <Button variant={pendingAction === 'accept' ? 'default' : 'destructive'} className="h-11" disabled={busy} aria-busy={busy} onClick={() => { void run(pendingAction); }}>{busy ? 'Confirmando…' : 'Confirmar ação'}</Button>
+        </div>
+      </section>}
+      {error ? <div role="alert" className="mb-4 text-sm"><p>{error}</p><Button variant="outline" className="mt-3 h-11" disabled={busy} onClick={() => { void load().catch(error => setError(userErrorMessage(error))); }}>Recarregar proposta</Button></div> : null}
 
       <Card className="mb-4 shadow-none">
         <CardTitle>Detalhes</CardTitle>

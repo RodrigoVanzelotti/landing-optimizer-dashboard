@@ -33,6 +33,7 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [confirmingPublish, setConfirmingPublish] = useState(false);
   const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -52,13 +53,14 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
   }
 
   async function publish(): Promise<void> {
-    if (!window.confirm('Publicar a configuração deste site?')) return;
+    if (!editable || publishing || !snippet || !confirmingPublish) return;
     setPublishing(true);
     setPublishMsg(null);
     try {
       const res = await api.post<{ version: number }>(`/sites/${siteId}/config/publish`);
       setPublishedVersion(res.version);
       setHasChanges(false);
+      setConfirmingPublish(false);
       setPublishMsg(`Configuração publicada (v${res.version}).`);
       reload();
     } catch (e) {
@@ -101,9 +103,17 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
       </div>
 
       <section aria-label="Publicação da configuração" className="mt-8 border-t border-border pt-6">
-        {editable && <Button onClick={publish} disabled={publishing || !snippet} aria-busy={publishing} className="min-h-11">
+        {editable && <Button id="publish-config" onClick={() => { setConfirmingPublish(true); setPublishMsg(null); }} disabled={publishing || !snippet} aria-busy={publishing} aria-expanded={confirmingPublish} aria-controls="publish-confirmation" className="min-h-11">
           {publishing ? 'Publicando…' : 'Publicar configuração'}
         </Button>}
+        {editable && confirmingPublish && <section id="publish-confirmation" aria-labelledby="publish-confirmation-title" className="mt-4 rounded-md border border-border bg-muted/40 p-4">
+          <h2 id="publish-confirmation-title" className="text-sm font-semibold">Publicar a configuração deste site?</h2>
+          <p className="mt-2 text-sm leading-relaxed text-muted-foreground">A configuração atual será publicada para o código de rastreamento instalado neste site.</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button autoFocus variant="outline" className="h-11" disabled={publishing} onClick={() => { setConfirmingPublish(false); document.getElementById('publish-config')?.focus(); }}>Cancelar</Button>
+            <Button className="h-11" disabled={publishing} aria-busy={publishing} onClick={() => { void publish(); }}>{publishing ? 'Publicando…' : 'Confirmar publicação'}</Button>
+          </div>
+        </section>}
         {publishMsg && <p role="status" className="mt-3 text-sm text-muted-foreground">{publishMsg}</p>}
       </section>
 

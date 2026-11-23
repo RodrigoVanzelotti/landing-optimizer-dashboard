@@ -1,10 +1,34 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { api, ensureSession, getAccessToken, setAccessToken, setUnauthorizedHandler } from '../src/lib/api';
+import { api, ApiRequestError, ensureSession, getAccessToken, setAccessToken, setUnauthorizedHandler } from '../src/lib/api';
+import { userErrorMessage } from '../src/lib/errors';
 
 afterEach(() => {
   setAccessToken(null);
   setUnauthorizedHandler(null);
   vi.restoreAllMocks();
+});
+
+it.each([400, 403, 404, 409, 422, 429, 500])('hides technical response messages for HTTP %s while retaining structured diagnostics', async status => {
+  const technical = 'Validation failed: database internals must not be displayed';
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: { code: 'internal_error', message: technical } }, { status }));
+  try {
+    await api.post('/experiments/experiment/pause');
+    throw new Error('Expected request failure');
+  } catch (error) {
+    expect(error).toBeInstanceOf(ApiRequestError);
+    expect((error as ApiRequestError).message).toBe(userErrorMessage({ status }));
+    expect((error as ApiRequestError).message).not.toContain(technical);
+    expect((error as ApiRequestError).error.message).toBe(technical);
+  }
+});
+
+it('does not expose arbitrary network or runtime errors in user-facing experiment feedback', () => {
+  expect(userErrorMessage(new Error('Validation failed'))).not.toContain('Validation failed');
+});
+
+it('replaces technical fetch failures with safe feedback without losing diagnostics', async () => {
+  vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch internal network details'));
+  await expect(api.get('/experiments')).rejects.toMatchObject({ status: 0, message: userErrorMessage(null), error: { code: 'network_error', message: 'Failed to fetch internal network details' } });
 });
 
 describe('api request bodies', () => {

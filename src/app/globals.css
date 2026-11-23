@@ -22,3 +22,13 @@ body {
   color: hsl(var(--foreground));
   font-feature-settings: 'rlig' 1, 'calt' 1;
 }
+
+html:has(#experiment-dialog[open]),
+html:has(#experiment-dialog[open]) * {
+  scrollbar-width: none;
+}
+
+html:has(#experiment-dialog[open])::-webkit-scrollbar,
+html:has(#experiment-dialog[open]) *::-webkit-scrollbar {
+  display: none;
+}

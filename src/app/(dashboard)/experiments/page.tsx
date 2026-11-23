@@ -9,7 +9,8 @@ import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
 import { ExperimentDetail } from '@/components/experiment-detail';
-import { experimentStatusLabels as labels, experimentTypeLabels, experimentStages, experimentStage, experimentExpiry, filterExperiments } from '@/lib/experiments';
+import { ExperimentStatus } from '@/components/experiment-status';
+import { experimentTypeLabels, experimentStages, experimentStage, experimentExpiry, filterExperiments } from '@/lib/experiments';
 import { useSites } from '@/lib/use-sites';
 import { PersistentPanel, TabLink } from '@/components/persistent-tabs';
 import { InsightPreparationNotice } from '@/components/insight-preparation-notice';
@@ -33,11 +34,14 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
   const selected = params.get('review');
   const dialog = useRef<HTMLDialogElement>(null);
   const [experiments, setExperiments] = useState<Experiment[] | null>(null);
+  const previousStatuses = useRef(new Map<string, string>());
   const [error, setError] = useState(false);
   const [originResource, setOriginResource] = useState<{ id?: string; data?: InsightSuggestion | null; error?: boolean }>({});
   const [attempt, setAttempt] = useState(0);
+  const [detailAttempt, setDetailAttempt] = useState(0);
   const [now, setNow] = useState(() => Date.now());
-  const refresh = useCallback(() => { setNow(Date.now()); setAttempt(n => n + 1); }, []);
+  const refreshList = useCallback(() => { setNow(Date.now()); setAttempt(n => n + 1); }, []);
+  const refresh = useCallback(() => { refreshList(); setDetailAttempt(n => n + 1); }, [refreshList]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(timer);
@@ -97,7 +101,24 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
   const failed = error || originError;
   const loading = !experiments || (insightId && origin === undefined);
   const ready = !failed && !loading && !(insightId && origin === null);
-  const selectedVisible = visible.some(exp => exp.id === selected);
+  const selectedVisible = scoped.some(exp => exp.id === selected);
+  useEffect(() => {
+    if (!experiments) return;
+    for (const exp of experiments) {
+      const previous = previousStatuses.current.get(exp.id);
+      if (previous && previous !== exp.status && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        for (const id of [`pipeline-card-${exp.id}`, `experiment-detail-${exp.id}`]) {
+          document.getElementById(id)?.animate?.([
+            { transform: 'perspective(1200px) rotateX(0deg)', opacity: 1, offset: 0 },
+            { transform: 'perspective(1200px) rotateX(90deg)', opacity: 0, offset: 0.45 },
+            { transform: 'perspective(1200px) rotateX(-90deg)', opacity: 0, offset: 0.46 },
+            { transform: 'perspective(1200px) rotateX(0deg)', opacity: 1 },
+          ], { duration: 500, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' });
+        }
+      }
+    }
+    previousStatuses.current = new Map(experiments.map(exp => [exp.id, exp.status]));
+  }, [experiments]);
   useEffect(() => {
     if (!selected || !ready || !selectedVisible) return;
     const modal = dialog.current;
@@ -108,7 +129,9 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
     return () => {
       modal.close();
       document.body.style.overflow = overflow;
-      document.getElementById(`card-${selected}`)?.focus({ preventScroll: true });
+      const card = document.getElementById(`card-${selected}`);
+      card?.focus({ preventScroll: true });
+      card?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     };
   }, [selected, ready, selectedVisible]);
 
@@ -121,13 +144,12 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
     const open = selected === exp.id;
     const expiry = experimentExpiry(exp);
     const age = Math.max(0, Math.floor((now - Date.parse(exp.createdAt)) / 86_400_000));
-    return <li key={exp.id} className={`relative min-w-0 rounded-lg border bg-card p-3 hover:border-foreground focus-within:border-foreground ${open ? 'border-foreground' : 'border-border'}`}>
+    return <li key={exp.id} id={`pipeline-card-${exp.id}`} className={`relative min-w-0 origin-center rounded-lg border bg-card p-3 hover:border-foreground focus-within:border-foreground ${open ? 'border-foreground' : 'border-border'}`}>
       <div className={list ? 'grid items-center gap-x-5 gap-y-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]' : ''}>
         <div className="min-w-0"><h3><TabLink id={`card-${exp.id}`} href={href(exp.id)} role="button" aria-haspopup="dialog" aria-expanded={open} aria-controls="experiment-dialog" onKeyDown={event => { if (event.key === ' ') { event.preventDefault(); event.currentTarget.click(); } }} className="block min-h-11 break-words rounded py-2 text-left text-sm font-medium leading-snug after:absolute after:inset-0 after:rounded-lg focus-visible:outline-primary">{exp.name}</TabLink></h3>
           <p className="text-xs leading-relaxed text-muted-foreground">{experimentTypeLabels[exp.type] ?? 'Outro tipo'}</p>
         </div>
         <div className={`mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 ${list ? 'sm:mt-0 sm:justify-end' : ''}`}>
-          <Badge>{column === 'expired' ? 'Vencido' : exp.status === 'approved' ? 'Aprovado · Pronto para iniciar' : labels[exp.status] ?? exp.status}</Badge>
           {exp.insightId && <Link href={`/insights?insight=${encodeURIComponent(exp.insightId)}`} aria-label={`Ver insight de IA de origem de ${exp.name}`} className="relative z-10 inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Insight de origem</Link>}
           {column === 'results' && <Link href={`/results?experiment=${encodeURIComponent(exp.id)}`} className="relative z-10 inline-flex min-h-11 items-center text-xs text-primary underline underline-offset-4">Ver resultados</Link>}
         </div>
@@ -137,6 +159,7 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
         <span>Risco {exp.riskScore}/100</span>
       </div>
       {expiry !== null && <p className="mt-1 text-xs text-muted-foreground">{column === 'expired' ? 'Venceu em' : 'Válido até'} <time dateTime={new Date(expiry).toISOString()}>{dateLabel(expiry)}</time></p>}
+      <footer className="mt-3 flex justify-end"><ExperimentStatus experiment={exp} now={now} /></footer>
     </li>;
   }
 
@@ -153,7 +176,7 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
     ].map(([label, value], index) => <Card key={label} className={`p-4 shadow-none ${index === 0 ? 'border-foreground' : ''}`}><dt className="text-xs text-muted-foreground">{label}</dt><dd className="mt-2 text-2xl font-semibold tabular-nums">{experiments && !error ? value : '—'}</dd></Card>)}</dl>
 
     <section aria-label="Controles do pipeline" className="mb-4 overflow-hidden rounded-lg border border-border bg-card">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3"><div><h2 className="text-sm font-medium">Experimentos por etapa</h2><p className="mt-1 text-xs leading-relaxed text-muted-foreground">Cada experimento na etapa em que está hoje. Escolha uma etapa para ampliar.</p></div>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-muted/40 px-4 py-3"><h2 className="text-sm font-medium">Experimentos por etapa</h2>
         <div role="group" aria-label="Visualização dos experimentos" className="inline-flex rounded-lg border border-border bg-background p-1">{[['board', 'Quadro'], ['list', 'Lista']].map(([value, label]) => <Button key={value} variant="ghost" className={`h-11 ${view === value ? 'bg-foreground text-background hover:bg-foreground' : ''}`} aria-pressed={view === value} onClick={() => updateFilter('view', value, true)}>{label}</Button>)}</div>
       </div>
       <div className="px-4 py-3">
@@ -185,10 +208,10 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
         : <div className="mb-6"><DataState title="Sua próxima melhoria começa com uma hipótese" description="Após aprovar um insight de IA, seus experimentos ficarão prontos em até 24 horas e aparecerão aqui já aprovados." href="/insights" action="Explorar insights de IA" /></div>)}
       {scoped.length > 0 && !visible.length && <p role="status" className="mb-4 text-sm">Nenhum experimento corresponde aos filtros. Ajuste os parâmetros ou use Limpar filtros e Todas as etapas.</p>}
       {view === 'board' ? <div role="region" aria-label="Pipeline de experimentos" tabIndex={0} className="overflow-x-auto pb-4 focus-visible:outline-primary">
-        <div className={stage ? 'grid grid-cols-1' : 'grid grid-cols-1 items-start gap-3 md:grid-cols-[repeat(5,minmax(208px,1fr))]'}>
+        <div className={stage ? 'grid grid-cols-1' : 'grid grid-cols-1 items-start gap-3 md:grid-cols-[repeat(6,minmax(208px,1fr))]'}>
           {(selectedStage ? [selectedStage] : experimentStages).map(column => {
             const items = visible.filter(exp => experimentStage(exp, now) === column.id);
-            return <section key={column.id} aria-labelledby={`stage-${column.id}`} className="min-w-0 rounded-lg border border-t-2 border-border border-t-foreground bg-muted/40">
+            return <section key={column.id} aria-labelledby={`stage-${column.id}`} className={`min-w-0 rounded-lg border border-t-2 ${column.id === 'accepted' ? 'border-green-200 border-t-green-700 bg-green-50/60' : column.id === 'rejected' ? 'border-red-200 border-t-red-700 bg-red-50/60' : 'border-border border-t-foreground bg-muted/40'}`}>
               <header className="flex min-h-11 items-center justify-between gap-3 border-b border-border bg-card px-3 py-2"><h2 id={`stage-${column.id}`} className="flex min-w-0 items-center gap-2 text-xs font-medium"><span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-foreground" />{column.label}</h2><Badge className="shrink-0 border border-border bg-background tabular-nums">{items.length}</Badge></header>
               <ul className={stage ? 'grid gap-3 p-3 sm:grid-cols-2 xl:grid-cols-3' : 'space-y-2 p-2'}>{items.map(exp => experimentCard(exp))}</ul>
               {!items.length && <p className="px-3 pb-5 pt-2 text-xs text-muted-foreground">Nenhum experimento nesta etapa.</p>}
@@ -201,7 +224,7 @@ function ExperimentsList({ siteId, insightId }: { siteId: string; insightId: str
         onClick={event => { if (event.target === event.currentTarget) closeDetails(); }}>
         <div className="p-4 sm:p-6">
           <div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm font-medium">Detalhes do experimento</p><Button variant="ghost" autoFocus aria-label="Fechar detalhes do experimento" className="h-11 w-11 shrink-0 p-0" onClick={closeDetails}><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5"><path d="m6 6 12 12M6 18 18 6" /></svg></Button></div>
-          {experiments!.map(exp => <PersistentPanel key={exp.id} active={selected === exp.id && selectedVisible}><section aria-label={`Detalhes de ${exp.name}`} className="min-w-0 break-words"><ExperimentDetail key={attempt} id={exp.id} siteId={siteId} onChanged={refresh} /></section></PersistentPanel>)}
+          {experiments!.map(exp => <PersistentPanel key={exp.id} active={selected === exp.id && selectedVisible}><section id={`experiment-detail-${exp.id}`} aria-label={`Detalhes de ${exp.name}`} className="min-w-0 origin-center break-words"><ExperimentDetail key={detailAttempt} id={exp.id} siteId={siteId} onChanged={refreshList} /></section></PersistentPanel>)}
         </div>
       </dialog>
       {selected && !selectedVisible && <DataState error title="Experimento indisponível nesta seleção" description="Confira o site, o insight e os filtros ou escolha outro experimento do quadro." />}

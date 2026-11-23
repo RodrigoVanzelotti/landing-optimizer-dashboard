@@ -1,10 +1,11 @@
 ﻿'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { api, type ExperimentResult, type InsightSuggestion, type VariantResult } from '@/lib/api';
+import { api, type ExperimentResult, type InsightSuggestion } from '@/lib/api';
 import { Card, Badge } from '@/components/ui/card';
+import { ExperimentResultSummary } from '@/components/experiment-result-summary';
 import { BarChart } from '@/components/bar-chart';
 import { PageHeader } from '@/components/page-header';
 import { DataState } from '@/components/data-state';
@@ -56,6 +57,7 @@ function ResultsCollection({ siteId }: { siteId: string }) {
   const [results, setResults] = useState<ExperimentResult[] | null>(null);
   const [error, setError] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const refresh = useCallback(() => setAttempt(value => value + 1), []);
   useEffect(() => {
     let active = true;
     setError(false);
@@ -108,20 +110,18 @@ function ResultsCollection({ siteId }: { siteId: string }) {
               }) : <span className="text-sm font-normal text-muted-foreground">Aguardando dados das variantes.</span>}</span>
               <span className="mt-4 block text-xs font-normal text-muted-foreground">{open ? 'Recolher resultado' : 'Ver evidência, conversões e insight de origem'}</span>
             </TabLink></h2>
-            <div id={`result-details-${result.experimentId}`}><PersistentPanel active={open}><ResultDetails result={result} /></PersistentPanel></div>
+            <div id={`result-details-${result.experimentId}`}><PersistentPanel active={open}><ResultDetails result={result} onChanged={refresh} /></PersistentPanel></div>
           </Card>;
         })}</div>
       </>}
   </div>;
 }
 
-function ResultDetails({ result }: { result: ExperimentResult }) {
+function ResultDetails({ result, onChanged }: { result: ExperimentResult; onChanged: () => void }) {
   const control = result.variants.find(variant => variant.isControl);
-  const variants = result.variants.filter(variant => !variant.isControl);
   const ordered = [...result.variants].sort((a, b) => Number(b.isControl) - Number(a.isControl));
-  const partial = ['running', 'paused'].includes(result.experiment.status);
   return <section aria-label={`Detalhes do resultado de ${result.experiment.name}`} className="border-t border-border p-5 sm:p-6">
-    <div className="mb-6 space-y-4">{variants.map(variant => <Outcome key={variant.variantId} variant={variant} control={control} partial={partial} />)}</div>
+    <ExperimentResultSummary id={result.experimentId} siteId={result.experiment.siteId} status={result.experiment.status} onStateChanged={onChanged} showMore={false} />
     {result.experiment.insightId ? <ResultInsight siteId={result.experiment.siteId} insightId={result.experiment.insightId} /> : <p className="mb-6 text-sm text-muted-foreground">Este experimento não possui um insight de IA vinculado.</p>}
     {!result.variants.some(variant => variant.exposures > 0) ? <DataState title="Sem exposições" description="Confira a execução do teste e a instalação do código de rastreamento." href={`/experiments?review=${encodeURIComponent(result.experimentId)}`} action="Conferir experimento" /> : <>
       <div className="mb-8 grid items-start gap-6 lg:grid-cols-2"><div><BarChart title="Taxa de conversão" description="Conversões / exposições" formatValue={resultRate} reference={control && control.exposures > 0 ? { value: control.conversionRate, label: control.name } : undefined} rows={ordered.map(variant => ({ id: variant.variantId, label: variant.name, value: variant.exposures > 0 ? variant.conversionRate : null, tone: resultEvidence(variant, control).kind === 'improvement' ? 'positive' : resultEvidence(variant, control).kind === 'decline' ? 'negative' : 'neutral', detail: `${count(variant.conversions)} conversões / ${count(variant.exposures)} exposições` }))} /></div><div><BarChart title="Exposições" rows={ordered.map(variant => ({ id: variant.variantId, label: variant.name, value: variant.exposures, tone: 'neutral' }))} /></div></div>
@@ -139,20 +139,5 @@ function ResultDetails({ result }: { result: ExperimentResult }) {
         <div><dt className="font-medium text-foreground">Evidência estatística</dt><dd>A API considera a diferença significativa quando o p-valor é menor que 0,05; a diferença pode indicar melhora ou piora. Indisponível significa que não há base válida para calcular a comparação. Taxas observadas isoladamente não definem uma vencedora.</dd></div>
       </dl></details>
     </>}
-  </section>;
-}
-
-function Outcome({ variant, control, partial }: { variant: VariantResult & { name: string }; control?: VariantResult; partial: boolean }) {
-  const evidence = resultEvidence(variant, control);
-  const effect = relativeEffect(variant, control);
-  const difference = control && control.exposures > 0 && variant.exposures > 0 ? (variant.conversionRate - control.conversionRate) * 100 : null;
-  const titles = { improvement: 'Uma melhoria com evidência estatística', decline: 'O controle teve um resultado melhor', inconclusive: 'A diferença ainda não é conclusiva', insufficient: 'Ainda precisamos de mais dados', reference: 'Referência do experimento' };
-  const surface = evidence.kind === 'improvement' ? 'bg-green-50 text-green-950' : evidence.kind === 'decline' ? 'bg-red-50 text-red-950' : 'bg-muted/60 text-foreground';
-  return <section aria-label={`Resultado de ${variant.name}`} className={`rounded-lg p-5 sm:p-6 ${surface}`}>
-    <div className="flex flex-wrap items-start justify-between gap-3"><div className="flex min-w-0 items-start gap-3">{evidence.kind === 'improvement' && <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" className="mt-0.5 h-7 w-7 shrink-0"><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>}<div className="min-w-0"><h3 className="text-xl font-semibold tracking-tight">{titles[evidence.kind]}</h3><p className="mt-2 break-words text-sm">{variant.name}{partial ? ' · Resultado parcial, sujeito a mudanças' : ''}</p></div></div><Badge tone={evidence.tone} className="px-3 py-1 text-sm">{evidence.label}</Badge></div>
-    <div className="mt-6 flex flex-wrap items-end gap-x-8 gap-y-4"><div><p className="text-sm">{effect === null && difference !== null ? 'Diferença observada' : 'Efeito relativo observado'}</p><p className="mt-2 break-words text-4xl font-semibold tracking-tight tabular-nums sm:text-5xl">{effect !== null ? resultLift(effect) : difference !== null ? `${difference > 0 ? '+' : ''}${difference.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} p.p.` : 'Sem dados'}</p></div>
-      {control && control.exposures > 0 && variant.exposures > 0 && <p className="text-sm leading-relaxed">Controle <strong className="tabular-nums">{resultRate(control.conversionRate)}</strong><br />Variante <strong className="tabular-nums">{resultRate(variant.conversionRate)}</strong></p>}
-    </div>
-    <p className="mt-5 text-sm leading-relaxed">{evidence.kind === 'improvement' ? 'A variante apresentou uma taxa de conversão maior que o controle neste teste.' : evidence.kind === 'decline' ? 'A variante apresentou uma taxa de conversão menor. Este resultado ajuda a orientar a próxima melhoria.' : evidence.kind === 'inconclusive' ? 'A amostra atual não mostrou uma diferença estatisticamente significativa entre a variante e o controle.' : 'A evidência atual ainda não permite concluir o resultado desta variante.'} {count(variant.conversions)} conversões em {count(variant.exposures)} exposições da variante.</p>
   </section>;
 }

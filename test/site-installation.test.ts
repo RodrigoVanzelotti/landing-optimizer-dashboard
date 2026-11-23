@@ -31,6 +31,10 @@ function publishButton() {
   return host.querySelector<HTMLButtonElement>('section[aria-label="Publicação da configuração"] button')!;
 }
 
+async function confirmPublication() {
+  await act(async () => host.querySelector<HTMLButtonElement>('#publish-confirmation button:last-child')!.click());
+}
+
 it('shows the site version and status in Portuguese', async () => {
   await act(async () => root.render(React.createElement(SitesPage)));
   expect(host.textContent).toContain('Versão 0: ATIVO');
@@ -53,7 +57,10 @@ it('confirms publication, refreshes the list and resets feedback when switching 
   expect(host.textContent).toContain('ainda não foi publicada');
   vi.mocked(api.post).mockResolvedValue({ version: 1 });
   await act(async () => publishButton().click());
-  expect(window.confirm).toHaveBeenCalledWith('Publicar a configuração deste site?');
+  expect(api.post).not.toHaveBeenCalled();
+  expect(host.querySelector('#publish-confirmation')?.textContent).toContain('Publicar a configuração deste site?');
+  await confirmPublication();
+  expect(window.confirm).not.toHaveBeenCalled();
   expect(api.post).toHaveBeenCalledExactlyOnceWith('/sites/site/config/publish');
   expect(state.reload).toHaveBeenCalledOnce();
   expect(host.textContent).toContain('Configuração publicada (v1).');
@@ -66,8 +73,10 @@ it('confirms publication, refreshes the list and resets feedback when switching 
 
 it('does not publish when confirmation is canceled', async () => {
   await act(async () => root.render(React.createElement(SiteInstallPage)));
-  vi.mocked(window.confirm).mockReturnValue(false);
   await act(async () => publishButton().click());
+  await act(async () => host.querySelector<HTMLButtonElement>('#publish-confirmation button')!.click());
+  expect(host.querySelector('#publish-confirmation')).toBeNull();
+  expect(window.confirm).not.toHaveBeenCalled();
   expect(api.post).not.toHaveBeenCalled();
   expect(state.reload).not.toHaveBeenCalled();
   expect(host.textContent).toContain('ainda não foi publicada');
@@ -77,10 +86,15 @@ it('keeps the notice and permits retry when publication fails', async () => {
   await act(async () => root.render(React.createElement(SiteInstallPage)));
   vi.mocked(api.post).mockRejectedValue(new Error('Sem conexão'));
   await act(async () => publishButton().click());
+  await confirmPublication();
   expect(host.textContent).toContain('Não foi possível publicar: Sem conexão');
   expect(host.textContent).toContain('ainda não foi publicada');
   expect(publishButton().disabled).toBe(false);
   expect(state.reload).not.toHaveBeenCalled();
+  expect(host.querySelector<HTMLButtonElement>('#publish-confirmation button:last-child')!.disabled).toBe(false);
+  vi.mocked(api.post).mockResolvedValue({ version: 1 });
+  await confirmPublication();
+  expect(host.textContent).toContain('Configuração publicada (v1).');
 });
 
 it('hides publication for viewers and explains who can publish', async () => {
@@ -99,6 +113,7 @@ it('tracks only edits made on this screen and clears the local notice after succ
   expect(api.post).not.toHaveBeenCalled();
   vi.mocked(api.post).mockResolvedValue({ version: 4 });
   await act(async () => publishButton().click());
+  await confirmPublication();
   expect(host.textContent).not.toContain('Há alterações feitas nesta tela');
   expect(api.get).toHaveBeenCalledExactlyOnceWith('/sites/site/snippet');
 });

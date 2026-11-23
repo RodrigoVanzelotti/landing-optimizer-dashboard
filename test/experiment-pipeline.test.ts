@@ -31,6 +31,8 @@ it('groups approvals, live tests, results and refusals without expiring tests th
   expect(experimentStage({ ...old, status: 'paused', startedAt: '2026-11-16T00:00:00Z' }, now)).toBe('running');
   expect(experimentStage({ ...old, status: 'paused', startedAt: null }, now)).toBe('expired');
   expect(experimentStage({ ...old, status: 'completed' }, now)).toBe('results');
-  expect(experimentStage({ ...old, status: 'rolled_back' }, now)).toBe('results');
+  expect(experimentStage({ ...old, status: 'rolled_back' }, now)).toBe('rejected');
+  expect(experimentStage({ ...old, status: 'killed' }, now)).toBe('rejected');
+  expect(experimentStage({ ...old, status: 'accepted' }, now)).toBe('accepted');
   expect(experimentStage({ ...old, status: 'rejected' }, now)).toBe('rejected');
 });

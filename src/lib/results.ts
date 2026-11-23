@@ -6,7 +6,12 @@ export function relativeEffect(variant: VariantResult, control?: VariantResult):
 
 export function resultEvidence(variant: VariantResult, control?: VariantResult) {
   if (variant.isControl) return { kind: 'reference', label: 'Referência', tone: 'default' } as const;
-  if (!control?.exposures || !variant.exposures || variant.pValue === null) return { kind: 'insufficient', label: 'Dados insuficientes', tone: 'default' } as const;
+  if (!control?.exposures || !variant.exposures) return { kind: 'insufficient', label: 'Dados insuficientes', tone: 'default' } as const;
+  if (variant.decision === 'equivalent') return { kind: 'equivalent', label: 'Sem diferença relevante', tone: 'default' } as const;
+  if (variant.decision === 'collecting') return { kind: 'inconclusive', label: 'Evidência em coleta', tone: 'default' } as const;
+  if (variant.decision === 'improvement') return { kind: 'improvement', label: 'Melhora significativa', tone: 'green' } as const;
+  if (variant.decision === 'decline') return { kind: 'decline', label: 'Queda significativa', tone: 'red' } as const;
+  if (variant.pValue === null) return { kind: 'insufficient', label: 'Dados insuficientes', tone: 'default' } as const;
   if (!variant.significant || variant.conversionRate === control.conversionRate) return { kind: 'inconclusive', label: 'Sem diferença significativa', tone: 'default' } as const;
   if (variant.conversionRate > control.conversionRate) return { kind: 'improvement', label: 'Melhora significativa', tone: 'green' } as const;
   return { kind: 'decline', label: 'Queda significativa', tone: 'red' } as const;

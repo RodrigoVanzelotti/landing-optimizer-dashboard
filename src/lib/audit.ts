@@ -15,6 +15,7 @@ export const auditActionLabels: Record<string, string> = {
   'experiment.started': 'Experimento iniciado', 'experiment.paused': 'Experimento pausado',
   'experiment.completed': 'Experimento concluído', 'experiment.rolled_back': 'Experimento revertido',
   'experiment.killed': 'Experimento interrompido',
+  'experiment.accepted': 'Mudança aceita', 'experiment.result_reopened': 'Encerramento sem evidência reavaliado',
   'ai.analyzed': 'Análise de IA realizada', 'ai.materialized': 'Sugestão de IA convertida em experimento',
   'ai.approved': 'Insight de IA aprovado',
   'ai.experiments_ready': 'Experimentos do insight preparados',

@@ -9,6 +9,7 @@ export const experimentStatusLabels: Record<string, string> = {
   running: 'Em execução',
   paused: 'Pausado',
   completed: 'Concluído',
+  accepted: 'Mudança aceita',
   rejected: 'Rejeitado',
   rolled_back: 'Revertido',
   killed: 'Interrompido',
@@ -27,8 +28,9 @@ export const experimentStages = [
   { id: 'waiting', label: 'Aguardando aprovação', description: 'Propostas para revisar ou iniciar.' },
   { id: 'running', label: 'Em experimentação', description: 'Testes em execução ou pausados.' },
   { id: 'results', label: 'Resultados disponíveis', description: 'Testes encerrados para consultar.' },
-  { id: 'expired', label: 'Vencidos', description: 'Sete dias sem iniciar o experimento.' },
+  { id: 'accepted', label: 'Mudanças aceitas', description: 'Mudanças mantidas após avaliar o resultado.' },
   { id: 'rejected', label: 'Negados', description: 'Propostas recusadas pelo usuário.' },
+  { id: 'expired', label: 'Vencidos', description: 'Sete dias sem iniciar o experimento.' },
 ] as const;
 
 export function experimentExpiry(experiment: Pick<Experiment, 'status' | 'createdAt' | 'expiresAt' | 'startedAt'>): number | null {
@@ -37,11 +39,12 @@ export function experimentExpiry(experiment: Pick<Experiment, 'status' | 'create
 }
 
 export function experimentStage(experiment: Experiment, now: number): typeof experimentStages[number]['id'] {
-  if (experiment.status === 'rejected') return 'rejected';
+  if (['rejected', 'rolled_back', 'killed'].includes(experiment.status)) return 'rejected';
+  if (experiment.status === 'accepted') return 'accepted';
   const expires = experimentExpiry(experiment);
   if (experiment.expired || (expires !== null && expires <= now)) return 'expired';
   if (['running', 'paused'].includes(experiment.status)) return 'running';
-  if (['completed', 'rolled_back', 'killed'].includes(experiment.status)) return 'results';
+  if (experiment.status === 'completed') return experiment.resultState === 'pending_validation' ? 'running' : 'results';
   return 'waiting';
 }
 

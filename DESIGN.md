@@ -142,11 +142,16 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   files and errors that preserve prior selections. PDFs are converted locally
   into visual references; never reuse DOM coordinates on a print layout. Hide
   overlay controls on captures without element positions and retain metrics below.
-- Experiments uses a five-stage board: Aguardando aprovação, Em experimentação,
-  Resultados disponíveis, Vencidos and Negados. Approved proposals awaiting a start
+- Experiments uses a six-stage board, in this order: Aguardando aprovação,
+  Em experimentação, Resultados disponíveis, Mudanças aceitas, Negados and Vencidos.
+  Accepted changes use a light green column, refused/reverted changes light red.
+  Approved proposals awaiting a start
   stay in the first stage with an explicit Aprovado · Pronto para iniciar label;
   they never require another approval. Paused live tests stay with ongoing tests;
-  completed and rolled-back tests retain their actual status under results.
+  completed tests await a decision under results; rolled-back tests belong to Negados.
+  Running tests offer only Pausar and Rejeitar experimento. Paused tests retain
+  Retomar. Rejecting a live test restores the control through the rollback action.
+  Never show a manual Concluir action or raw technical API errors to users.
   Proposals expire seven elapsed days after experiment creation, before their
   first start; approval and scheduling never extend this deadline. Historical
   records stay readable, while the API blocks expired mutations and starts.
@@ -169,11 +174,39 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   viewport, with a dimmed, blurred backdrop. Close on outside click, Escape or the
   top-right close button; contain keyboard focus and restore it to the card.
   Preserve visited details when closing. Results cards link to that experiment's results.
-  Unapproved proposals offer Aprovar and Negar to editors and administrators only;
-  approving a draft submits it for review internally before approval. Approval
-  never starts the test. Explain lifecycle actions with hover tooltips and accessible
+  Unapproved proposals offer Aprovar e iniciar and Negar to editors and administrators
+  only. One click submits drafts for review, approves and starts the experiment;
+  already approved proposals need only Iniciar. Failed steps show the actual state
+  and permit retry without repeating completed approvals. Explain lifecycle actions with hover tooltips and accessible
   descriptions. Label the hypothesis with a lightbulb and Mudança proposta with a
   target icon; omit control cards from proposal details.
+  Show a shared state badge in the pipeline card footer and at the top right of details: amber
+  for waiting/paused/expired, green for approved/running/completed and red for
+  rejected/reverted/interrupted. Always include the state text. Flip changed cards
+  vertically around their center for 500ms after confirmed status changes; skip
+  the animation for reduced-motion preferences and ordinary filter/view changes.
+  While an experiment modal is open, hide UI scrollbars while keeping its content
+  scrollable by mouse, touch and keyboard. Restore normal scrollbars on close.
+  Opening a card under Resultados disponíveis leads with its main result inside
+  the modal, using the same outcome, goal and evidence as Results. Include Ver mais
+  linking to that experiment's full result; keep unavailable/failed reads explicit.
+  Automatically finalize only after
+  sufficient evidence; plan for detecting a 10% relative difference and allow a
+  decision after enough evidence of no relevant difference as well. Monthly site
+  traffic must inform the sampling plan and estimated duration, alongside baseline
+  conversion rate and statistical uncertainty. Do not equate a nonsignificant
+  result with proof of equivalence. Preserve a final result snapshot and repair
+  historical completed records without results without fabricating data.
+  The same per-experiment time series must compare base/proposed conversion rates
+  in running and completed views, with relative effect (%) and absolute difference
+  (percentage points); running values are provisional. Manter mudança must persist
+  an accepted state and publish the chosen proposal to 100% of visitors; Reverter
+  mudança restores the base and moves to Negados. The analysis uses mature 24-hour
+  conversion cohorts, at least seven observed days, and simultaneous time-uniform
+  95% confidence sequences. Monthly visits set a per-arm minimum and an estimated
+  duration; actual evidence, not that estimate or an isolated p-value, ends a test.
+  A missing baseline uses a separate pilot excluded from subsequent analysis.
+  See the API's `docs/EXPERIMENT_LIFECYCLE.md` for the protocol and migration.
 - Results cites the selected experiment's source insight with its title, recorded
   approval date and a direct link, including before exposures exist. Missing legacy
   origins and failed reads are explicit. Statistical comparisons label control
@@ -222,6 +255,11 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   data is missing and how to begin collecting it; request failures provide recovery
   and must never be presented as missing data. Keep unavailable billing distinct
   from a feature waiting for visitor events.
+
+- Keep all communication and confirmations in the application UI. Never use
+  browser/system `alert`, `confirm` or `prompt`. Follow the inline confirmation
+  pattern with an explanation, Cancelar and an explicit confirmation action;
+  preserve permission checks, pending states and recoverable errors.
 
 ## Verification
 

@@ -28,7 +28,7 @@ beforeEach(() => {
   scope.siteId = 'site';
   host = document.createElement('div'); document.body.append(host); root = createRoot(host);
   rows = [make('win'), make('decline', { ...variant, conversions: 50, conversionRate: .05, lift: -.5 }), make('inconclusive', { ...variant, conversions: 110, conversionRate: .11, lift: .1, significant: false, pValue: .4 }), make('small', { ...variant, exposures: 10, conversions: 5, conversionRate: .5, lift: 4, significant: false, pValue: null })];
-  vi.mocked(api.get).mockImplementation(async path => path.startsWith('/analytics/experiments/results?') ? rows : [{ id: 'origin', approvedAt: '2026-11-04T12:00:00Z', payload: { title: 'Tornar a chamada mais clara' } }]);
+  vi.mocked(api.get).mockImplementation(async path => path.endsWith('/report') ? { ...rows.find(row => path === `/analytics/experiments/${row.experimentId}/report`), series: [], evidence: [], plan: null, coverageComplete: true, conclusive: true, conversionWindowHours: 24 } : path.startsWith('/analytics/experiments/results?') ? rows : [{ id: 'origin', approvedAt: '2026-11-04T12:00:00Z', payload: { title: 'Tornar a chamada mais clara' } }]);
 });
 afterEach(async () => { await act(async () => root.unmount()); host.remove(); vi.restoreAllMocks(); vi.resetAllMocks(); });
 const render = async () => { await act(async () => root.render(React.createElement(ResultsPage))); };
@@ -41,6 +41,8 @@ it('distinguishes actual improvements, declines, inconclusive and insufficient e
   expect(resultEvidence(rows[2].variants[1], control).kind).toBe('inconclusive');
   expect(resultEvidence(rows[3].variants[1], control).kind).toBe('insufficient');
   expect(resultEvidence(variant).kind).toBe('insufficient');
+  expect(resultEvidence({ ...variant, pValue: null, significant: false, decision: 'equivalent' }, control).kind).toBe('equivalent');
+  expect(resultEvidence({ ...variant, significant: true, decision: 'collecting' }, control).kind).toBe('inconclusive');
   expect(relativeEffect({ ...variant, exposures: 0, lift: -1 }, control)).toBeNull();
 });
 

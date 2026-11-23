@@ -4,6 +4,8 @@
  * renew it. Never stores tokens in localStorage.
  */
 
+import { userErrorMessage } from './errors';
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
 
 let accessToken: string | null = null;
@@ -41,9 +43,14 @@ export class ApiRequestError extends Error {
     public readonly status: number,
     public readonly error: ApiError,
   ) {
-    super(error.message);
+    super(userErrorMessage({ status }));
     this.name = 'ApiRequestError';
   }
+}
+
+async function fetchResponse(path: string, init: RequestInit): Promise<Response> {
+  try { return await fetch(`${API_URL}${path}`, init); }
+  catch (error) { throw new ApiRequestError(0, { code: 'network_error', message: error instanceof Error ? error.message : 'Network request failed' }); }
 }
 
 async function request<T>(
@@ -59,7 +66,7 @@ async function request<T>(
     headers.set('Content-Type', 'application/json');
   }
 
-  const res = await fetch(`${API_URL}${path}`, {
+  const res = await fetchResponse(path, {
     ...init,
     headers,
     credentials: 'include',
@@ -97,7 +104,7 @@ function tryRefresh(): Promise<boolean> {
 
 async function refreshSession(): Promise<boolean> {
   const version = sessionVersion;
-  const res = await fetch(`${API_URL}/auth/refresh`, {
+  const res = await fetchResponse('/auth/refresh', {
     method: 'POST',
     credentials: 'include',
   });
@@ -118,7 +125,7 @@ async function refreshSession(): Promise<boolean> {
 async function requestBlob(path: string, retry = true): Promise<Blob> {
   const headers = new Headers();
   if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
-  const res = await fetch(`${API_URL}${path}`, { headers, credentials: 'include' });
+  const res = await fetchResponse(path, { headers, credentials: 'include' });
 
   if (res.status === 401) {
     if (retry && (await tryRefresh())) return requestBlob(path, false);
@@ -178,6 +185,7 @@ export interface Experiment {
   expiresAt?: string | null;
   expired?: boolean;
   startedAt?: string | null;
+  resultState?: 'pending_validation' | 'ready';
 }
 
 export interface Overview {
@@ -221,6 +229,7 @@ export interface AnalyticsReport {
 }
 
 export interface VariantResult {
+  decision?: 'collecting' | 'improvement' | 'decline' | 'equivalent';
   variantId: string;
   isControl: boolean;
   exposures: number;
@@ -236,6 +245,20 @@ export interface ExperimentResult {
   experiment: Experiment;
   goal: { id: string; name: string } | null;
   variants: (VariantResult & { name: string })[];
+}
+
+export interface ExperimentReport {
+  experimentId: string;
+  experiment: Pick<Experiment, 'id' | 'siteId' | 'name' | 'status'>;
+  goal: { id: string; name: string } | null;
+  variants: ExperimentResult['variants'];
+  series: { date: string; variants: { variantId: string; exposures: number; conversions: number; conversionRate: number | null }[] }[];
+  conclusive: boolean;
+  coverageComplete: boolean;
+  conversionWindowHours: number;
+  recordedAt: string;
+  plan: { monthlyVisits: number; minimumPerArm: number; estimatedDays: number; relativeEffect: number } | null;
+  evidence: { variantId: string; lower: number; upper: number; decision: string }[];
 }
 
 export type GoalKind = 'event' | 'url' | 'form_submit';
