@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
@@ -31,10 +33,8 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
   const [publishedVersion, setPublishedVersion] = useState<number | null>(null);
   const [snippet, setSnippet] = useState<SnippetResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [confirmingPublish, setConfirmingPublish] = useState(false);
-  const [publishMsg, setPublishMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,24 +47,24 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
 
   async function copy(): Promise<void> {
     if (!snippet) return;
-    await navigator.clipboard.writeText(snippet.html);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    try {
+      await navigator.clipboard.writeText(snippet.html);
+      toast.success('Código de rastreamento copiado.');
+    } catch { toast.error('Não foi possível copiar. Selecione e copie o código de rastreamento.'); }
   }
 
   async function publish(): Promise<void> {
     if (!editable || publishing || !snippet || !confirmingPublish) return;
     setPublishing(true);
-    setPublishMsg(null);
     try {
       const res = await api.post<{ version: number }>(`/sites/${siteId}/config/publish`);
       setPublishedVersion(res.version);
       setHasChanges(false);
       setConfirmingPublish(false);
-      setPublishMsg(`Configuração publicada (v${res.version}).`);
+      toast.success(`Configuração publicada (v${res.version}).`);
       reload();
     } catch (e) {
-      setPublishMsg(`Não foi possível publicar: ${(e as Error).message}`);
+      toast.error(`Não foi possível publicar: ${(e as Error).message}`);
     } finally {
       setPublishing(false);
     }
@@ -86,7 +86,7 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
             <div className="mb-2 flex items-center justify-between">
               <CardTitle>Instalar código de rastreamento</CardTitle>
               <Button size="sm" variant="outline" onClick={copy}>
-                {copied ? 'Copiado' : 'Copiar'}
+                Copiar
               </Button>
             </div>
             <pre className="overflow-x-auto whitespace-pre-wrap break-all rounded bg-muted p-3 text-xs">
@@ -99,11 +99,11 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
       )}
 
       <div className="mt-4">
-        <GoalsManager siteId={siteId} onChanged={() => { setPublishMsg(null); setHasChanges(true); }} />
+        <GoalsManager siteId={siteId} onChanged={() => { setHasChanges(true); }} />
       </div>
 
       <section aria-label="Publicação da configuração" className="mt-8 border-t border-border pt-6">
-        {editable && <Button id="publish-config" onClick={() => { setConfirmingPublish(true); setPublishMsg(null); }} disabled={publishing || !snippet} aria-busy={publishing} aria-expanded={confirmingPublish} aria-controls="publish-confirmation" className="min-h-11">
+        {editable && <Button id="publish-config" onClick={() => { setConfirmingPublish(true); }} disabled={publishing || !snippet} aria-busy={publishing} aria-expanded={confirmingPublish} aria-controls="publish-confirmation" className="min-h-11">
           {publishing ? 'Publicando…' : 'Publicar configuração'}
         </Button>}
         {editable && confirmingPublish && <section id="publish-confirmation" aria-labelledby="publish-confirmation-title" className="mt-4 rounded-md border border-border bg-muted/40 p-4">
@@ -114,7 +114,6 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
             <Button className="h-11" disabled={publishing} aria-busy={publishing} onClick={() => { void publish(); }}>{publishing ? 'Publicando…' : 'Confirmar publicação'}</Button>
           </div>
         </section>}
-        {publishMsg && <p role="status" className="mt-3 text-sm text-muted-foreground">{publishMsg}</p>}
       </section>
 
       {snippet && <details className="mt-8 rounded-lg border border-border p-5">

@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { useEffect, useState } from 'react';
 import { api, type AnalyticsTimeframe } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -27,7 +29,6 @@ export function AuditSettings() {
   const [draft, setDraft] = useState<Filters>(initialFilters);
   const [applied, setApplied] = useState<Filters>(initialFilters);
   const [exporting, setExporting] = useState(false);
-  const [exportError, setExportError] = useState('');
   const [cursors, setCursors] = useState(['']);
   const [page, setPage] = useState(0);
   const [attempt, setAttempt] = useState(0);
@@ -66,7 +67,7 @@ export function AuditSettings() {
     setApplied({ ...draft }); setCursors(['']); setPage(0); setAttempt(value => value + 1);
   }
   async function exportCsv() {
-    setExporting(true); setExportError('');
+    setExporting(true);
     try {
       const file = await api.getBlob(`/audit/export?${exportQuery}`);
       const url = URL.createObjectURL(file);
@@ -75,7 +76,7 @@ export function AuditSettings() {
       document.body.append(link); link.click(); link.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch {
-      setExportError('Não foi possível exportar as atividades. Tente novamente.');
+      toast.error('Não foi possível exportar as atividades. Tente novamente.');
     } finally { setExporting(false); }
   }
   function next() {
@@ -89,7 +90,6 @@ export function AuditSettings() {
       <div><h2 id="audit-heading" className="text-xl font-semibold">Registro de atividades</h2><p className="mt-2 max-w-2xl text-sm leading-relaxed text-muted-foreground">Todas as atividades deste espaço de trabalho, 10 por página. Use os filtros para refinar a consulta ou baixe todos os registros da consulta em CSV.</p></div>
       <Button variant="outline" className="h-11 shrink-0" disabled={exporting || !result} onClick={() => { void exportCsv(); }}>{exporting ? 'Exportando…' : 'Baixar CSV'}</Button>
     </div>
-    {exportError && <p role="alert" className="mb-4 text-sm">{exportError}</p>}
     <div id="audit-filters" className="mb-8 rounded-lg border border-border p-5">
       {optionsError && <div role="alert" className="mb-4 text-sm"><p>Não foi possível carregar as opções de ação e autor.</p><Button variant="outline" className="mt-2 h-11" onClick={() => setOptionsAttempt(value => value + 1)}>Tentar novamente</Button></div>}
       {!options && !optionsError && <p role="status" className="mb-4 text-sm text-muted-foreground">Carregando opções dos filtros…</p>}

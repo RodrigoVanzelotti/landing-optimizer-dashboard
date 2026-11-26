@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiRequestError } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -17,10 +19,8 @@ export function TeamSettings(): React.ReactElement {
   const admin = user.role === 'admin';
   const [team, setTeam] = useState<Team | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState('');
-  const [copied, setCopied] = useState(false);
   const [role, setRole] = useState<UserRole>('viewer');
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [reactivation, setReactivation] = useState<{ email: string; role: UserRole } | null>(null);
@@ -35,9 +35,9 @@ export function TeamSettings(): React.ReactElement {
   const adminsFull = !!team && admins + reservedAdmins >= team.adminLimit;
 
   async function mutate(action: () => Promise<unknown>, message?: string): Promise<void> {
-    setBusy(true); setError(null); setNotice(null);
-    try { await action(); await load(); if (message) setNotice(message); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível concluir. Tente novamente.'); }
+    setBusy(true); setError(null);
+    try { await action(); await load(); if (message) toast.success(message); }
+    catch (err) { toast.error(err instanceof Error ? err.message : 'Não foi possível concluir. Tente novamente.'); }
     finally { setBusy(false); }
   }
 
@@ -48,12 +48,12 @@ export function TeamSettings(): React.ReactElement {
     await mutate(async () => {
       try {
         const result = await api.post<Invitation & { url: string }>('/team/invitations', { name: data.get('name'), email: data.get('email'), role });
-        setLink(result.url); setCopied(false); form.reset(); setRole('viewer');
+        setLink(result.url); toast.success('Convite criado. Copie o link e envie à pessoa convidada.'); form.reset(); setRole('viewer');
       } catch (err) {
         const details = err instanceof ApiRequestError && err.status === 409 ? err.error.details : null;
         if (details && typeof details === 'object' && 'reactivationAvailable' in details && details.reactivationAvailable === true) {
           setReactivation({ email: String(data.get('email')).trim().toLowerCase(), role });
-          setLink(''); setCopied(false); setRemovingId(null);
+          setLink(''); setRemovingId(null);
           return;
         }
         throw err;
@@ -75,8 +75,8 @@ export function TeamSettings(): React.ReactElement {
   }
 
   async function copy(): Promise<void> {
-    try { await navigator.clipboard.writeText(link); setCopied(true); }
-    catch { setError('Não foi possível copiar automaticamente. Selecione e copie o link abaixo.'); }
+    try { await navigator.clipboard.writeText(link); toast.success('Link copiado.'); }
+    catch { toast.error('Não foi possível copiar automaticamente. Selecione e copie o link abaixo.'); }
   }
 
   async function changeRole(member: Member, nextRole: string): Promise<void> {
@@ -96,7 +96,6 @@ export function TeamSettings(): React.ReactElement {
   return (
     <div lang="pt-BR">
       {error && <p role="alert" className="mb-5 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-      {notice && <p role="status" className="mb-5 text-sm text-green-800">{notice}</p>}
       {!team ? <p role="status" className="text-muted-foreground">{error ? 'Recarregue a página para tentar novamente.' : 'Carregando sua equipe…'}</p> : <>
         <div className="mb-8 flex flex-wrap gap-x-8 gap-y-3 border-y border-border py-4 text-sm">
           <p><strong>{team.members.length} de {team.userLimit}</strong> usuários registrados</p>
@@ -125,8 +124,7 @@ export function TeamSettings(): React.ReactElement {
             {link && <div className="mt-6 border-t border-border pt-5">
               <label htmlFor="generated-invite" className="block text-sm font-medium">Link pronto para enviar</label>
               <p className="mt-1 text-sm text-slate-600">Copie agora e envie apenas à pessoa convidada. O link completo não será exibido novamente após sair da página.</p>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input id="generated-invite" readOnly value={link} onFocus={(event) => event.target.select()} className={`${inputClass} min-w-0 sm:flex-1`} /><Button type="button" variant="outline" className="h-11" onClick={copy}>{copied ? 'Copiado' : 'Copiar link'}</Button></div>
-              {copied && <p role="status" className="mt-2 text-sm text-green-800">Link copiado.</p>}
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input id="generated-invite" readOnly value={link} onFocus={(event) => event.target.select()} className={`${inputClass} min-w-0 sm:flex-1`} /><Button type="button" variant="outline" className="h-11" onClick={copy}>Copiar link</Button></div>
             </div>}
           </section>
         ) : <p className="mb-8 text-sm text-muted-foreground">Você pode consultar esta área. Apenas administradores podem convidar pessoas e alterar perfis.</p>}

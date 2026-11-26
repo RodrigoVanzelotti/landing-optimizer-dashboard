@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { useEffect, useState } from 'react';
 import { api, type HeatmapResult, type SnapshotDetail, type SnapshotMeta } from '@/lib/api';
 import { DataState } from '@/components/data-state';
@@ -39,7 +41,8 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
       if (selected.capture) setCaptureFile(selected.capture);
       if (selected.visual) setScreenshotFile(selected.visual);
       setUploadError(false);
-      setUploadMessage(files.length ? 'Arquivos selecionados. Confira a seleção e envie a captura.' : '');
+      setUploadMessage('');
+      if (files.length) toast.info('Arquivos selecionados. Confira a seleção e envie a captura.');
     } catch (error) {
       setUploadError(true);
       setUploadMessage(error instanceof Error ? error.message : 'Não foi possível selecionar os arquivos.');
@@ -67,14 +70,13 @@ export function SiteHeatmap({ siteId, domain }: { siteId: string; domain?: strin
     <form className="mt-4 space-y-3" aria-busy={uploading} onSubmit={async event => {
       event.preventDefault();
       if (!captureFile || uploading) return;
-      setUploading(true); setUploadError(false); setUploadMessage('Preparando e enviando captura…');
+      setUploading(true); setUploadError(false); setUploadMessage('');
       try {
         await uploadSnapshotFile(captureFile, siteId, screenshotFile ?? undefined);
-        setUploadMessage('Captura salva. A visualização está sendo atualizada.');
+        toast.success('Captura salva. A visualização está sendo atualizada.');
         setAttempt(value => value + 1);
       } catch (error) {
-        setUploadError(true);
-        setUploadMessage(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.');
+        toast.error(error instanceof Error ? error.message : 'Não foi possível enviar. Tente novamente.');
       } finally { setUploading(false); }
     }}>
     <label htmlFor="snapshot-files" className={`flex min-h-40 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-5 text-center focus-within:outline focus-within:outline-2 focus-within:outline-primary ${uploading ? 'cursor-wait opacity-60' : 'cursor-pointer hover:bg-muted'} ${dragging ? 'border-primary bg-muted' : 'border-border'}`}

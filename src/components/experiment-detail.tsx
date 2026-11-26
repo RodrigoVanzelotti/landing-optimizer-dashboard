@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
@@ -84,7 +86,6 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [goals, setGoals] = useState<ConversionGoal[] | null>(null);
-  const [goalNotice, setGoalNotice] = useState('');
   const [pendingAction, setPendingAction] = useState<string | null>(null);
   const [acceptedVariant, setAcceptedVariant] = useState('');
 
@@ -127,7 +128,7 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
       let message = userErrorMessage(e);
       try { await load(); }
       catch { message += ' Não foi possível atualizar o estado. Recarregue a proposta antes de tentar novamente.'; }
-      setError(message);
+      toast.error(message);
       onChanged();
     } finally {
       setBusy(false);
@@ -140,12 +141,11 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
     const goalId = String(new FormData(event.currentTarget).get('primaryGoalId') || '');
     setBusy(true);
     setError(null);
-    setGoalNotice('');
     try {
       await api.patch(`/experiments/${id}`, { primaryGoalId: goalId || null });
-      setGoalNotice('Meta principal salva.');
+      toast.success('Meta principal salva.');
       await load();
-    } catch (e) { setError(userErrorMessage(e)); }
+    } catch (e) { toast.error(userErrorMessage(e)); }
     finally { setBusy(false); }
   }
 
@@ -258,7 +258,6 @@ export function ExperimentDetail({ id, siteId, onChanged }: { id: string; siteId
           </form>
         ) : <p className="mt-3 break-words text-sm">{exp.primaryGoalId ? goals?.find(goal => goal.id === exp.primaryGoalId)?.name ?? exp.primaryGoalId : 'Todas as metas de conversão'}. Alterações ficam disponíveis antes da revisão.</p>}
         {goals?.length === 0 ? <p className="mt-2 text-sm">Cadastre metas de conversão na página de instalação do site.</p> : null}
-        <p role="status" className="mt-2 text-sm">{goalNotice}</p>
       </Card>
     </div>
   );

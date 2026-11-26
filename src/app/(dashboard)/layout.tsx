@@ -3,6 +3,7 @@ import { AuthGuard } from '@/components/auth-guard';
 import { Sidebar } from '@/components/sidebar';
 import { SitesProvider } from '@/lib/use-sites';
 import { SiteScope } from '@/components/site-navigation';
+import { ToastViewport } from '@/components/ui/toast';
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
           <div className="mx-auto w-full min-w-0 max-w-6xl"><SiteScope>{children}</SiteScope></div>
         </main>
       </div>
+      <ToastViewport />
       </SitesProvider>
     </AuthGuard>
   );

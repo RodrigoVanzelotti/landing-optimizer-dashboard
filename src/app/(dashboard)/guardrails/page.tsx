@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
@@ -14,7 +16,7 @@ import { DataState } from '@/components/data-state';
 const inputClass =
   'w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
-type SaveState = { kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string };
+type SaveState = { kind: 'idle' | 'saving' | 'error'; message?: string };
 
 export default function GuardrailsPage(): React.ReactElement {
   const editable = canEdit(useSession().role);
@@ -75,9 +77,11 @@ export default function GuardrailsPage(): React.ReactElement {
     setState({ kind: 'saving' });
     try {
       await api.put<GuardrailView>(`/sites/${siteId}/guardrails`, { rules });
-      setState({ kind: 'saved', message: 'Diretrizes salvas.' });
+      setState({ kind: 'idle' });
+      toast.success('Diretrizes salvas.');
     } catch (e) {
-      setState({ kind: 'error', message: (e as Error).message });
+      setState({ kind: 'idle' });
+      toast.error((e as Error).message);
     }
   }
 
@@ -107,9 +111,6 @@ export default function GuardrailsPage(): React.ReactElement {
       {!ready && state.kind === 'error' && <DataState error title="Diretrizes indisponíveis" description={state.message ?? 'Tente novamente.'} onRetry={() => setAttempt(value => value + 1)} />}
       {ready && state.kind === 'error' ? (
         <p className="mb-4 text-sm text-red-600">{state.message}</p>
-      ) : null}
-      {state.kind === 'saved' ? (
-        <p className="mb-4 text-sm text-green-700">{state.message}</p>
       ) : null}
 
       {ready && <div className="grid gap-4 md:max-w-2xl">

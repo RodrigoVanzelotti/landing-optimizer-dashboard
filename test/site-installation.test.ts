@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -63,7 +64,7 @@ it('confirms publication, refreshes the list and resets feedback when switching 
   expect(window.confirm).not.toHaveBeenCalled();
   expect(api.post).toHaveBeenCalledExactlyOnceWith('/sites/site/config/publish');
   expect(state.reload).toHaveBeenCalledOnce();
-  expect(host.textContent).toContain('Configuração publicada (v1).');
+  expect(toast.success).toHaveBeenCalledWith('Configuração publicada (v1).');
   expect(host.textContent).not.toContain('ainda não foi publicada');
   state.siteId = 'other';
   await act(async () => root.render(React.createElement(SiteInstallPage)));
@@ -87,14 +88,14 @@ it('keeps the notice and permits retry when publication fails', async () => {
   vi.mocked(api.post).mockRejectedValue(new Error('Sem conexão'));
   await act(async () => publishButton().click());
   await confirmPublication();
-  expect(host.textContent).toContain('Não foi possível publicar: Sem conexão');
+  expect(toast.error).toHaveBeenCalledWith('Não foi possível publicar: Sem conexão');
   expect(host.textContent).toContain('ainda não foi publicada');
   expect(publishButton().disabled).toBe(false);
   expect(state.reload).not.toHaveBeenCalled();
   expect(host.querySelector<HTMLButtonElement>('#publish-confirmation button:last-child')!.disabled).toBe(false);
   vi.mocked(api.post).mockResolvedValue({ version: 1 });
   await confirmPublication();
-  expect(host.textContent).toContain('Configuração publicada (v1).');
+  expect(toast.success).toHaveBeenCalledWith('Configuração publicada (v1).');
 });
 
 it('hides publication for viewers and explains who can publish', async () => {
@@ -124,3 +125,5 @@ it('blocks publication when the installation data fails to load', async () => {
   expect(host.textContent).toContain('Sem conexão');
   expect(publishButton().disabled).toBe(true);
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

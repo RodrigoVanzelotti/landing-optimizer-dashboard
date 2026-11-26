@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -116,7 +117,7 @@ it('records approval, explains the 24-hour preparation and lists delivered appro
   expect(host.textContent).toContain('os experimentos serão preparados em até 24 horas');
   approve.click(); expect(api.post).toHaveBeenCalledExactlyOnceWith('/ai/suggestions/actionable/approve');
   await act(async () => complete({ approvedAt: '2026-11-21T12:00:00Z', experimentsReadyAt: null, experiments: [] }));
-  expect(host.textContent).toContain('Insight aprovado');
+  expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Insight aprovado'));
   expect(host.textContent).toContain('Seus experimentos estão sendo preparados');
   expect(host.textContent).toContain('já aprovados e prontos para iniciar');
   expect(host.querySelector('section[aria-label="Experimentos deste insight"]')).toBeNull();
@@ -149,7 +150,7 @@ it('keeps a failed approval pending and allows another attempt', async () => {
   vi.mocked(api.post).mockRejectedValue(new Error('Sem conexão'));
   await act(async () => root.render(React.createElement(InsightsPage)));
   await act(async () => button('Aprovar insight').click());
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Não foi possível concluir a ação');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Não foi possível concluir a ação'));
   expect(host.textContent).not.toContain('Sem conexão');
   expect(host.textContent).toContain('Aguardando aprovação');
   expect(button('Aprovar insight').disabled).toBe(false);
@@ -251,7 +252,7 @@ it('does not show a failed rejection as successful and allows a retry', async ()
   await act(async () => root.render(React.createElement(InsightsPage)));
   await act(async () => button('Rejeitar insight').click());
   await act(async () => button('Confirmar rejeição').click());
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Tente novamente');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Tente novamente'));
   expect(host.textContent).not.toContain('Database internal error');
   expect(button('Confirmar rejeição').disabled).toBe(false);
   expect(host.querySelector('summary')?.textContent).toContain('Aguardando aprovação');
@@ -302,3 +303,5 @@ it('discards a previous site read when the selected site changes', async () => {
   expect(host.textContent).not.toContain('Insight old-site');
   expect(api.get).toHaveBeenLastCalledWith('/sites/new-site/ai/suggestions');
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

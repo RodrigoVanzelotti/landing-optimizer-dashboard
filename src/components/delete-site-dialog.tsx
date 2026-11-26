@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, type Site } from '@/lib/api';
 import { Button } from '@/components/ui/button';
@@ -8,7 +10,6 @@ export function DeleteSiteDialog({ site, onClose, onDeleted }: { site: Site; onC
   const dialog = useRef<HTMLDialogElement>(null);
   const [confirmation, setConfirmation] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   useEffect(() => { dialog.current?.showModal(); }, []);
   function close() {
     if (busy) return;
@@ -19,13 +20,13 @@ export function DeleteSiteDialog({ site, onClose, onDeleted }: { site: Site; onC
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy || confirmation.trim() !== site.primaryDomain) return;
-    setBusy(true); setError(null);
+    setBusy(true);
     try {
       await api.del(`/sites/${site.id}`, { confirmation: confirmation.trim() });
       dialog.current?.close();
       onDeleted();
     } catch {
-      setError('Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente: a operação pode ter sido parcialmente concluída.');
+      toast.error('Não foi possível confirmar a exclusão. Atualize a lista antes de tentar novamente: a operação pode ter sido parcialmente concluída.');
       setBusy(false);
     }
   }
@@ -44,7 +45,6 @@ export function DeleteSiteDialog({ site, onClose, onDeleted }: { site: Site; onC
       <label htmlFor="delete-site-confirmation" className="block text-sm">Para confirmar, digite <strong className="break-all">{site.primaryDomain}</strong></label>
       <input id="delete-site-confirmation" autoFocus autoComplete="off" spellCheck={false} required disabled={busy} value={confirmation}
         onChange={event => setConfirmation(event.target.value)} className="mt-2 h-11 w-full rounded-md border border-border bg-background px-3 text-sm" />
-      {error && <p role="alert" className="mt-3 text-sm text-red-600">{error}</p>}
       <p role="status" className="mt-3 text-sm text-muted-foreground">{busy ? 'Excluindo os dados e invalidando as credenciais. Aguarde a confirmação…' : ''}</p>
       <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
         <Button type="button" variant="outline" className="h-11" disabled={busy} onClick={close}>Cancelar</Button>

@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -28,9 +30,7 @@ export default function TenantsPage(): React.ReactElement {
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [link, setLink] = useState<GeneratedLink | null>(null);
-  const [copied, setCopied] = useState(false);
   const [confirmation, setConfirmation] = useState('');
   const loadList = useCallback(async () => {
     const rows = await api.get<TenantSummary[]>('/platform/tenants');
@@ -54,9 +54,9 @@ export default function TenantsPage(): React.ReactElement {
 
   async function act(action: () => Promise<void>): Promise<void> {
     if (busy) return;
-    setBusy(true); setError(null); setNotice(null); setCopied(false);
+    setBusy(true); setError(null);
     try { await action(); }
-    catch (err) { setError(err instanceof Error ? err.message : 'Não foi possível concluir. Tente novamente.'); }
+    catch (err) { toast.error(err instanceof Error ? err.message : 'Não foi possível concluir. Tente novamente.'); }
     finally { setBusy(false); }
   }
 
@@ -70,7 +70,7 @@ export default function TenantsPage(): React.ReactElement {
       setLink({ url: result.invitationUrl, title: `Convite do primeiro administrador: ${data.get('email')}`, expiresAt: result.expiresAt });
       setSelectedId(result.tenantId); setShowCreate(false);
       await loadList();
-      setNotice('Cliente criado. Envie o convite ao primeiro administrador.');
+      toast.success('Cliente criado. Envie o convite ao primeiro administrador.');
     });
   }
 
@@ -79,7 +79,7 @@ export default function TenantsPage(): React.ReactElement {
     await act(async () => {
       const result = await api.post<{ url: string; expiresAt: string }>(`/platform/tenants/${detail.id}/users/${member.user.id}/password-reset`);
       setLink({ ...result, title: `Redefinição de senha: ${member.user.email}` });
-      setNotice('Envie o link ao usuário. A senha só muda quando ele concluir a redefinição.');
+      toast.success('Envie o link ao usuário. A senha só muda quando ele concluir a redefinição.');
     });
   }
 
@@ -89,14 +89,14 @@ export default function TenantsPage(): React.ReactElement {
       await api.post(`/platform/tenants/${detail.id}/${archive ? 'archive' : 'restore'}`, archive ? { confirmation } : undefined);
       setDetail(await api.get<TenantDetail>(`/platform/tenants/${detail.id}`));
       await loadList(); setConfirmation(''); setLink(null);
-      setNotice(archive ? 'Cliente arquivado. Seus dados foram preservados e os acessos estão bloqueados.' : 'Cliente reativado.');
+      toast.success(archive ? 'Cliente arquivado. Seus dados foram preservados e os acessos estão bloqueados.' : 'Cliente reativado.');
     });
   }
 
   async function copy(): Promise<void> {
     if (!link) return;
-    try { await navigator.clipboard.writeText(link.url); setCopied(true); }
-    catch { setError('Selecione e copie o link abaixo. A cópia automática não está disponível.'); }
+    try { await navigator.clipboard.writeText(link.url); toast.success('Link copiado.'); }
+    catch { toast.error('Selecione e copie o link abaixo. A cópia automática não está disponível.'); }
   }
 
   const ownTenant = detail?.id === user.tenantId || detail?.memberships.some((member) => member.user.id === user.id);
@@ -106,7 +106,6 @@ export default function TenantsPage(): React.ReactElement {
       <PageHeader title="Clientes" description="Gestão exclusiva da plataforma. Clientes, pessoas e acessos em um só lugar."
         action={<Button disabled={busy} variant={showCreate ? 'outline' : 'default'} onClick={() => setShowCreate(!showCreate)}>{showCreate ? 'Cancelar' : 'Novo cliente'}</Button>} />
       {error && <p role="alert" className="mb-5 rounded-md bg-red-50 p-3 text-sm text-red-800">{error}</p>}
-      {notice && <p role="status" className="mb-5 text-sm text-green-800">{notice}</p>}
       {showCreate && <section className="mb-8 rounded-xl bg-muted/50 p-5 sm:p-6" aria-labelledby="new-tenant-title">
         <h2 id="new-tenant-title" className="text-xl font-semibold">Convide um novo cliente</h2>
         <p className="mt-2 text-sm leading-relaxed text-slate-600">O espaço de trabalho será criado agora. O primeiro administrador escolhe a própria senha pelo convite, válido por 7 dias.</p>
@@ -120,15 +119,14 @@ export default function TenantsPage(): React.ReactElement {
       {link && <section className="mb-8 rounded-xl bg-primary/5 p-5" aria-labelledby="link-title">
         <h2 id="link-title" className="break-words font-semibold">{link.title}</h2>
         <p className="mt-2 text-sm text-slate-600">Envie somente ao destinatário. Copie agora: o link completo não será exibido novamente. Válido até {new Date(link.expiresAt).toLocaleString('pt-BR')}.</p>
-        <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input aria-label="Link gerado" readOnly value={link.url} onFocus={(event) => event.target.select()} className={`${inputClass} min-w-0 sm:flex-1`} /><Button onClick={copy} variant="outline" className="h-11">{copied ? 'Copiado' : 'Copiar link'}</Button></div>
-        {copied && <p role="status" className="mt-2 text-sm text-green-800">Link copiado.</p>}
+        <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input aria-label="Link gerado" readOnly value={link.url} onFocus={(event) => event.target.select()} className={`${inputClass} min-w-0 sm:flex-1`} /><Button onClick={copy} variant="outline" className="h-11">Copiar link</Button></div>
       </section>}
       {loading ? <p role="status">Carregando clientes…</p> : !tenants.length ? <p className="text-muted-foreground">Nenhum cliente encontrado. Crie o primeiro pelo botão Novo cliente.</p> : (
         <div className="grid gap-8 lg:grid-cols-[minmax(220px,1fr)_minmax(0,2fr)]">
           <section aria-label="Lista de clientes">
             <p className="mb-3 text-sm text-muted-foreground">{tenants.length} cliente(s), incluindo arquivados</p>
             <ul className="divide-y divide-border border-y border-border">{tenants.map((tenant) => <li key={tenant.id}>
-              <button disabled={busy} onClick={() => { setSelectedId(tenant.id); setLink(null); setConfirmation(''); setError(null); setNotice(null); }} aria-current={tenant.id === selectedId ? 'true' : undefined}
+              <button disabled={busy} onClick={() => { setSelectedId(tenant.id); setLink(null); setConfirmation(''); setError(null); }} aria-current={tenant.id === selectedId ? 'true' : undefined}
                 className={`w-full p-4 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${tenant.id === selectedId ? 'bg-primary/5' : ''}`}>
                 <span className="block break-words font-medium">{tenant.name}</span><span className="mt-1 block text-xs text-slate-600">{tenant.archivedAt ? 'Arquivado' : 'Ativo'} · {tenant._count.memberships}/10 usuários · {tenant._count.sites} site(s)</span>
               </button>

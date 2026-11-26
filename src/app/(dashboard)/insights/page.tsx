@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
@@ -53,8 +55,6 @@ function InsightsContent({ insightId }: { insightId: string | null }): React.Rea
   const [decision, setDecision] = useState<'approve' | 'reject'>('approve');
   const [confirmReject, setConfirmReject] = useState<string | null>(null);
   const [filter, setFilter] = useState<Filter>('all');
-  const [messageError, setMessageError] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
@@ -78,15 +78,14 @@ function InsightsContent({ insightId }: { insightId: string | null }): React.Rea
     pending.current = true;
     request.current++;
     setLoading(false);
-    setDecision(action); setPendingId(id); setMsg(null); setMessageError(false);
+    setDecision(action); setPendingId(id);
     try {
       const result = await api.post<Partial<InsightSuggestion>>(`/ai/suggestions/${id}/${action}`);
       setSuggestions(items => items.map(item => item.id === id ? { ...item, ...result } : item));
       setConfirmReject(null);
-      setMsg(action === 'reject' ? 'Insight rejeitado. Ele está disponível no filtro Rejeitados.' : result.experimentsReadyAt ? 'Insight aprovado. Os experimentos vinculados estão disponíveis na aba Experimentos.' : 'Insight aprovado. Os experimentos ficarão prontos em até 24 horas e já estarão aprovados.');
+      toast.success(action === 'reject' ? 'Insight rejeitado. Ele está disponível no filtro Rejeitados.' : result.experimentsReadyAt ? 'Insight aprovado. Os experimentos vinculados estão disponíveis na aba Experimentos.' : 'Insight aprovado. Os experimentos ficarão prontos em até 24 horas e já estarão aprovados.');
     } catch (e) {
-      setMessageError(true);
-      setMsg(userErrorMessage(e));
+      toast.error(userErrorMessage(e));
     } finally {
       pending.current = false;
       setPendingId(null);
@@ -97,10 +96,8 @@ function InsightsContent({ insightId }: { insightId: string | null }): React.Rea
     <div>
       <PageHeader
         title="Insights de IA"
-        description="Aprove um insight para receber os experimentos em até 24 horas, já aprovados. Novos insights aparecerão conforme o site acumular dados."
       />
       {insightId && <div role="status" className="mb-6 flex flex-wrap items-center gap-4 text-sm"><p>Exibindo o insight de origem dos experimentos.</p><Link href="/insights" className="inline-flex min-h-11 items-center text-primary underline underline-offset-4">Ver todos os insights</Link></div>}
-      {msg ? <p role={messageError ? 'alert' : 'status'} className="mb-4 text-sm text-muted-foreground">{msg}</p> : null}
 
       {sitesError || error ? <DataState error title="Não foi possível consultar os insights" description="Confira sua conexão e tente novamente." onRetry={() => siteId ? load(siteId) : window.location.reload()} />
         : sitesLoading ? <DataState loading title="Preparando seus insights…" />

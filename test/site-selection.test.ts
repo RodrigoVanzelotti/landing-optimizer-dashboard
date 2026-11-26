@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -128,7 +129,7 @@ describe('shared site context', () => {
     vi.mocked(api.put).mockRejectedValue(new Error('offline'));
     await click('Favorite A');
     expect(host.querySelector('#favorite')?.textContent).toBe('a');
-    expect(host.textContent).toContain('Sua preferência anterior foi mantida');
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Sua preferência anterior foi mantida'));
   });
   it('falls back safely when a saved favorite is no longer available', async () => {
     vi.mocked(api.get).mockImplementation(async path => path === '/sites' ? sites : { favoriteSiteId: 'removed-site' });
@@ -152,3 +153,5 @@ describe('shared site context', () => {
     expect(host.textContent).toContain('Insight for B');
   });
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

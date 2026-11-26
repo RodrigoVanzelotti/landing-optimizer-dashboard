@@ -50,6 +50,12 @@ reference. Color and brand palette decisions are deferred; use the existing toke
   full value remains available. Do not hide overflow to conceal a broken layout.
 - Distinguish loading, empty, failed and completed states. Keep entered values after
   failure, prevent duplicate submissions, and tell the user how to recover.
+- Action feedback uses the shared dismissible toast, including success, failure,
+  clipboard and export messages. Use React-Toastify with an eight-second countdown
+  and a visible progress bar; pause on hover, keyboard focus and window focus loss.
+  Retain manual dismissal and the remaining time across navigation and native dialogs.
+  Keep field validation, load failures, pending controls and persistent business
+  notices (such as unpublished configuration) in their relevant page context.
 - Preserve semantic headings and DOM order, visible keyboard focus, labelled controls,
   status/alert announcements, and role-based access. Never rely on color alone.
 - Avoid decorative motion, new fonts, illustrations or new palette values for routine

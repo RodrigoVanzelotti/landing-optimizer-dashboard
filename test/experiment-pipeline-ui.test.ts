@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import * as React from 'react';
 import './dialog-mock';
 import { act } from 'react';
@@ -233,7 +234,7 @@ it('does not resubmit a draft when approval fails after submission', async () =>
   await render();
   const approve = () => [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Aprovar e iniciar')!;
   await act(async () => approve().click());
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Não foi possível concluir a ação agora');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Não foi possível concluir a ação agora'));
   await act(async () => approve().click());
   expect(vi.mocked(api.post).mock.calls.map(([path]) => path)).toEqual(['/experiments/approved/submit', '/experiments/approved/approve', '/experiments/approved/approve', '/experiments/approved/start']);
 });
@@ -244,7 +245,7 @@ it('keeps the actual approved state and retries only starting when the start req
   window.history.replaceState(null, '', '/experiments?review=approved');
   await render();
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Aprovar e iniciar')!.click());
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('Não foi possível concluir a ação agora');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('Não foi possível concluir a ação agora'));
   expect(host.querySelector('dialog [aria-label="Estado do experimento"]')?.textContent).toBe('Aprovado · Pronto para iniciar');
   await act(async () => [...host.querySelectorAll<HTMLButtonElement>('dialog button')].find(button => button.textContent === 'Iniciar')!.click());
   expect(vi.mocked(api.post).mock.calls.map(([path]) => path)).toEqual(['/experiments/approved/approve', '/experiments/approved/start', '/experiments/approved/start']);
@@ -488,3 +489,5 @@ it('isolates failed insight reads from metrics and clears the citation for exper
   expect(host.querySelector('#result-details-approved [aria-label="Insight de origem"]')).toBeNull();
   expect(host.querySelector('#result-details-approved')?.textContent).toContain('não possui um insight de IA vinculado');
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

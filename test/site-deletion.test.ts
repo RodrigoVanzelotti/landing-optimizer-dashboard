@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import './dialog-mock';
 import * as React from 'react';
 import { act } from 'react';
@@ -51,15 +52,17 @@ it('requires the exact domain, communicates irreversible consequences and preven
   await act(async () => finish());
   expect(state.removeSite).toHaveBeenCalledExactlyOnceWith('site');
   expect(host.querySelector('dialog')).toBeNull();
-  expect(host.textContent).toContain('Site e dados excluídos');
+  expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Site e dados excluídos'));
 });
 it('preserves the confirmation after a failure and allows cancelling without deleting', async () => {
   vi.mocked(api.del).mockRejectedValue(new Error('internal database details'));
   await act(async () => root.render(React.createElement(SitesPage)));
   await click('Excluir'); await type('example.test'); await click('Excluir site e todos os dados');
-  expect(host.querySelector('[role="alert"]')?.textContent).toContain('parcialmente concluída');
+  expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('parcialmente concluída'));
   expect(host.textContent).not.toContain('internal database details');
   expect(host.querySelector<HTMLInputElement>('#delete-site-confirmation')?.value).toBe('example.test');
   expect(state.removeSite).not.toHaveBeenCalled();
   await click('Cancelar'); expect(host.querySelector('dialog')).toBeNull();
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

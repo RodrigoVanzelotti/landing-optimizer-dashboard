@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, type Site } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -61,8 +63,9 @@ function SitesState({ children }: { children: ReactNode }) {
     try {
       const saved = await api.put<{ favoriteSiteId: string | null }>('/auth/preferences', { favoriteSiteId: id });
       setFavoriteSiteId(saved.favoriteSiteId && removedIds.current.has(saved.favoriteSiteId) ? null : saved.favoriteSiteId);
+      toast.success(id ? 'Site favorito definido.' : 'Site favorito removido.');
     } catch {
-      setPreferenceError('Não foi possível salvar seu favorito. Sua preferência anterior foi mantida. Tente novamente.');
+      toast.error('Não foi possível salvar seu favorito. Sua preferência anterior foi mantida. Tente novamente.');
     } finally { setFavoriteBusy(false); }
   }
 

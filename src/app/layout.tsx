@@ -1,5 +1,6 @@
 import type * as React from 'react';
 import type { Metadata } from 'next';
+import 'react-toastify/dist/ReactToastify.css';
 import './globals.css';
 
 export const metadata: Metadata = {

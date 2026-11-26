@@ -1,5 +1,7 @@
 'use client';
 
+import { toast } from '@/components/ui/toast';
+
 import type * as React from 'react';
 import { useSession } from '@/lib/session';
 import { canEdit } from '@/lib/permissions';
@@ -32,7 +34,6 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  const [notice, setNotice] = useState('');
   const fieldId = useId();
 
   const load = useCallback(() => {
@@ -50,7 +51,6 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
   async function create(): Promise<void> {
     if (busy) return;
     setError(null);
-    setNotice('');
     if (!name.trim()) {
       setError('Informe o nome da meta.');
       return;
@@ -73,7 +73,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
         isFavorite,
         ...(matcher ? { matcher } : {}),
       });
-      setNotice('Meta adicionada. Novos eventos correspondentes serão contados como conversões.');
+      toast.success('Meta adicionada. Novos eventos correspondentes serão contados como conversões.');
       onChanged();
       setName('');
       setIsFavorite(false);
@@ -81,7 +81,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       setSelector('');
       load();
     } catch (e) {
-      setError(errorMessage(e));
+      toast.error(errorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -91,22 +91,23 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
     setError(null);
     try {
       await api.del(`/sites/${siteId}/goals/${id}`);
+      toast.success('Meta excluída.');
       onChanged();
       load();
     } catch (e) {
-      setError(errorMessage(e));
+      toast.error(errorMessage(e));
     }
   }
 
   async function favorite(goal: ConversionGoal): Promise<void> {
     if (busy) return;
-    setBusy(true); setError(null); setNotice('');
+    setBusy(true); setError(null);
     try {
       await api.patch(`/sites/${siteId}/goals/${goal.id}`, { isFavorite: !goal.isFavorite });
       setGoals(current => current.map(item => ({ ...item, isFavorite: item.id === goal.id ? !goal.isFavorite : false })));
-      setNotice(goal.isFavorite ? 'Meta favorita removida.' : 'Meta favorita definida. Ela será selecionada por padrão na visão geral deste site.');
+      toast.success(goal.isFavorite ? 'Meta favorita removida.' : 'Meta favorita definida. Ela será selecionada por padrão na visão geral deste site.');
       onChanged();
-    } catch (e) { setError(errorMessage(e)); }
+    } catch (e) { toast.error(errorMessage(e)); }
     finally { setBusy(false); }
   }
 
@@ -121,7 +122,6 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
 
       {error ? <p role="alert" className="mt-3 text-sm text-red-600">{error}</p> : null}
 
-      <p role="status" className="mt-2 text-sm text-muted-foreground">{notice}</p>
 
       <div className="mt-4 space-y-2">
         {!loaded ? <p className="text-sm text-muted-foreground">Carregando metas…</p> : error && goals.length === 0 ? null : goals.length === 0 ? (

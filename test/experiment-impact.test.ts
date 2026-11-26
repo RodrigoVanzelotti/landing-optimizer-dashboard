@@ -1,3 +1,4 @@
+import { toast } from '../src/components/ui/toast';
 import * as React from 'react';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
@@ -113,10 +114,10 @@ it('sets a favorite on an existing goal, preserves the previous value on failure
   vi.mocked(api.patch).mockResolvedValue({});
   await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Definir como favorita')!.click());
   expect(api.patch).toHaveBeenCalledWith('/sites/site/goals/first', { isFavorite: true });
-  expect(host.textContent).toContain('Meta favorita definida');
+  expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Meta favorita definida'));
   vi.mocked(api.patch).mockRejectedValue(new Error('Falha ao salvar'));
   await act(async () => [...host.querySelectorAll('button')].find(button => button.textContent === 'Remover favorita')!.click());
-  expect(host.textContent).toContain('Falha ao salvar');
+  expect(toast.error).toHaveBeenCalledWith('Falha ao salvar');
   expect(host.querySelector('button[aria-pressed="true"]')).not.toBeNull();
   session.role = 'viewer';
   await act(async () => root.render(React.createElement(GoalsManager, { siteId: 'site', onChanged: vi.fn() })));
@@ -135,3 +136,5 @@ it('includes the favorite flag when creating a conversion goal', async () => {
   await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
   expect(api.post).toHaveBeenCalledWith('/sites/site/goals', { name: 'Lead', kind: 'event', isFavorite: true });
 });
+
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
