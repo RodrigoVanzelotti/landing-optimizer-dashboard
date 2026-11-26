@@ -74,7 +74,7 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
     <div>
       <PageHeader
         title="Instalação do código"
-        description="Adicione antes de </head>."
+        description="Cole o código no <head> compartilhado do site."
       />
 
       {(hasChanges || (publishedVersion ?? site?.configVersion) === 0) && <p role="status" className="mb-6 rounded-md border border-border bg-muted p-4 text-sm">{hasChanges ? 'Há alterações feitas nesta tela desde a última publicação manual da configuração.' : 'A configuração deste site ainda não foi publicada.'} {editable ? 'Use Publicar configuração ao final da página.' : 'Peça a um editor ou administrador para publicar a configuração.'}</p>}
@@ -99,7 +99,10 @@ function SiteInstallation({ siteId }: { siteId: string }): React.ReactElement {
       )}
 
       <div className="mt-4">
-        <GoalsManager siteId={siteId} onChanged={() => { setHasChanges(true); }} />
+        <GoalsManager siteId={siteId} onChanged={(kind) => {
+          if (kind === 'element_visible') reload();
+          else setHasChanges(true);
+        }} />
       </div>
 
       <section aria-label="Publicação da configuração" className="mt-8 border-t border-border pt-6">

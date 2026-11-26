@@ -261,7 +261,7 @@ export interface ExperimentReport {
   evidence: { variantId: string; lower: number; upper: number; decision: string }[];
 }
 
-export type GoalKind = 'event' | 'url' | 'form_submit';
+export type GoalKind = 'event' | 'url' | 'form_submit' | 'element_visible';
 
 export interface ConversionGoal {
   id: string;

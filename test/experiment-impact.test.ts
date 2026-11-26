@@ -128,13 +128,41 @@ it('sets a favorite on an existing goal, preserves the previous value on failure
 it('includes the favorite flag when creating a conversion goal', async () => {
   await act(async () => root.render(React.createElement(GoalsManager, { siteId: 'site', onChanged: vi.fn() })));
   const name = host.querySelector<HTMLInputElement>('input[placeholder="lead_received"]')!;
+  const type = host.querySelector<HTMLSelectElement>('select')!;
+  expect(type.value).toBe('url');
   await act(async () => {
+    type.value = 'event';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(name, 'Lead');
     name.dispatchEvent(new Event('input', { bubbles: true }));
     host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
   });
   await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
   expect(api.post).toHaveBeenCalledWith('/sites/site/goals', { name: 'Lead', kind: 'event', isFavorite: true });
+});
+
+it('configures an existing success element using just its route and HTML IDs', async () => {
+  await act(async () => root.render(React.createElement(GoalsManager, { siteId: 'site', onChanged: vi.fn() })));
+  const type = host.querySelector<HTMLSelectElement>('select')!;
+  await act(async () => {
+    type.value = 'element_visible';
+    type.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await act(async () => {
+    for (const [placeholder, value] of Object.entries({
+      lead_received: 'Lead', '/cadastro': '/cadastro',
+      'cadastro-confirmado': 'lead-confirmado', 'cadastro-form': 'lead-form',
+    })) {
+      const input = host.querySelector(`input[placeholder="${placeholder}"]`)!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(input, value);
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
+  await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+  expect(api.post).toHaveBeenCalledWith('/sites/site/goals', {
+    name: 'Lead', kind: 'element_visible', isFavorite: false,
+    matcher: { path: '/cadastro', selector: '[data-lo-id="lead-confirmado"]', formSelector: '[data-lo-id="lead-form"]' },
+  });
 });
 
 vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));

@@ -22,15 +22,17 @@ const inputClass =
   'min-h-11 min-w-0 w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary';
 
 /** Per-site conversion goal management (create, list, delete). */
-export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged: () => void }): React.ReactElement {
+export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged: (kind: GoalKind) => void }): React.ReactElement {
   const editable = canEdit(useSession().role);
   const [goals, setGoals] = useState<ConversionGoal[]>([]);
   const [name, setName] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
-  const [kind, setKind] = useState<GoalKind>('event');
+  const [kind, setKind] = useState<GoalKind>('url');
   const [urlOp, setUrlOp] = useState<UrlOp>('exact');
   const [urlPath, setUrlPath] = useState('');
   const [selector, setSelector] = useState('');
+  const [confirmationId, setConfirmationId] = useState('');
+  const [formId, setFormId] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -55,8 +57,17 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       setError('Informe o nome da meta.');
       return;
     }
-    if (kind === 'url' && !urlPath.trim()) {
-      setError('Informe o caminho da URL para metas de visita à página.');
+    if ((kind === 'url' || kind === 'element_visible') && !urlPath.trim()) {
+      setError('Informe o caminho da página.');
+      return;
+    }
+    if (kind === 'element_visible' && !/^\/(?!\/)[^?#\s]*$/.test(urlPath.trim())) {
+      setError('Informe só o caminho da página, como /cadastro.');
+      return;
+    }
+    if (kind === 'element_visible' && ![confirmationId, ...(formId.trim() ? [formId] : [])]
+      .every(id => /^[a-z][a-z0-9-]{0,63}$/.test(id.trim()))) {
+      setError('Informe IDs com até 64 caracteres, começando com letra minúscula e usando apenas letras minúsculas, números e hífens.');
       return;
     }
     setBusy(true);
@@ -64,6 +75,12 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       const matcher =
         kind === 'url'
           ? { op: urlOp, path: urlPath.trim() }
+          : kind === 'element_visible'
+            ? {
+              path: urlPath.trim(),
+              selector: `[data-lo-id="${confirmationId.trim()}"]`,
+              ...(formId.trim() ? { formSelector: `[data-lo-id="${formId.trim()}"]` } : {}),
+            }
           : kind === 'form_submit' && selector.trim()
             ? { selector: selector.trim() }
             : undefined;
@@ -73,12 +90,16 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
         isFavorite,
         ...(matcher ? { matcher } : {}),
       });
-      toast.success('Meta adicionada. Novos eventos correspondentes serão contados como conversões.');
-      onChanged();
+      toast.success(kind === 'element_visible'
+        ? 'Meta adicionada. Reabra a página do site para testar com a configuração nova.'
+        : 'Meta adicionada. Novos eventos correspondentes serão contados na meta.');
+      onChanged(kind);
       setName('');
       setIsFavorite(false);
       setUrlPath('');
       setSelector('');
+      setConfirmationId('');
+      setFormId('');
       load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -87,12 +108,12 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
     }
   }
 
-  async function remove(id: string): Promise<void> {
+  async function remove(goal: ConversionGoal): Promise<void> {
     setError(null);
     try {
-      await api.del(`/sites/${siteId}/goals/${id}`);
+      await api.del(`/sites/${siteId}/goals/${goal.id}`);
       toast.success('Meta excluída.');
-      onChanged();
+      onChanged(goal.kind);
       load();
     } catch (e) {
       toast.error(errorMessage(e));
@@ -106,7 +127,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       await api.patch(`/sites/${siteId}/goals/${goal.id}`, { isFavorite: !goal.isFavorite });
       setGoals(current => current.map(item => ({ ...item, isFavorite: item.id === goal.id ? !goal.isFavorite : false })));
       toast.success(goal.isFavorite ? 'Meta favorita removida.' : 'Meta favorita definida. Ela será selecionada por padrão na visão geral deste site.');
-      onChanged();
+      onChanged(goal.kind);
     } catch (e) { toast.error(errorMessage(e)); }
     finally { setBusy(false); }
   }
@@ -115,9 +136,8 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
     <Card>
       <CardTitle>Metas de conversão</CardTitle>
       <p className="mt-1 text-xs text-muted-foreground">
-        Defina o resultado de negócio que deseja medir. Metas de evento exigem uma chamada após a confirmação de sucesso;
-        visitas a URLs e envios de formulários nativos são identificados automaticamente pela API.
-        Rótulos, por si só, não definem conversões.
+        O que aparece no site depois que a ação dá certo? Use a página ou o elemento de confirmação que já existe no site.
+        Se conseguir observar apenas o clique ou o envio, acompanhe a tentativa nas métricas de interação.
       </p>
 
       {error ? <p role="alert" className="mt-3 text-sm text-red-600">{error}</p> : null}
@@ -140,7 +160,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
                   <span className="text-muted-foreground">· {goalKindLabels[g.kind]}</span>
                   {summary ? <span className="text-muted-foreground"> · {summary}</span> : null}
                 </div>
-                {editable && <div className="flex flex-wrap gap-2"><Button className="h-11" size="sm" variant="outline" disabled={busy} aria-pressed={!!g.isFavorite} onClick={() => void favorite(g)}>{g.isFavorite ? 'Remover favorita' : 'Definir como favorita'}</Button><Button size="sm" className="h-11" variant="destructive" disabled={busy} onClick={() => remove(g.id)}>
+                {editable && <div className="flex flex-wrap gap-2"><Button className="h-11" size="sm" variant="outline" disabled={busy} aria-pressed={!!g.isFavorite} onClick={() => void favorite(g)}>{g.isFavorite ? 'Remover favorita' : 'Definir como favorita'}</Button><Button size="sm" className="h-11" variant="destructive" disabled={busy} onClick={() => remove(g)}>
                   Excluir
                 </Button></div>}
               </div>
@@ -168,9 +188,12 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
             value={kind}
             onChange={(e) => setKind(e.target.value as GoalKind)}
           >
-            <option value="event">Evento</option>
-            <option value="url">Visita à página</option>
-            <option value="form_submit">Envio de formulário</option>
+            <option value="url">{goalKindLabels.url}</option>
+            <option value="element_visible">{goalKindLabels.element_visible}</option>
+            <optgroup label="Avançado">
+              <option value="event">{goalKindLabels.event}</option>
+              <option value="form_submit">{goalKindLabels.form_submit}</option>
+            </optgroup>
           </select>
         </div>
 
@@ -201,6 +224,26 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
           </>
         ) : null}
 
+        {kind === 'element_visible' ? (
+          <>
+            <div className="flex min-w-0 flex-1 basis-44 flex-col">
+              <label htmlFor={`${fieldId}-path`} className="mb-1 text-xs text-muted-foreground">Caminho da página</label>
+              <input id={`${fieldId}-path`} className={inputClass} value={urlPath}
+                onChange={(e) => setUrlPath(e.target.value)} placeholder="/cadastro" maxLength={512} required />
+            </div>
+            <div className="flex min-w-0 flex-1 basis-44 flex-col">
+              <label htmlFor={`${fieldId}-confirmation`} className="mb-1 text-xs text-muted-foreground">ID da confirmação</label>
+              <input id={`${fieldId}-confirmation`} className={inputClass} value={confirmationId}
+                onChange={(e) => setConfirmationId(e.target.value)} placeholder="cadastro-confirmado" maxLength={64} required />
+            </div>
+            <div className="flex min-w-0 flex-1 basis-44 flex-col">
+              <label htmlFor={`${fieldId}-form-id`} className="mb-1 text-xs text-muted-foreground">ID do formulário (opcional)</label>
+              <input id={`${fieldId}-form-id`} className={inputClass} value={formId}
+                onChange={(e) => setFormId(e.target.value)} placeholder="cadastro-form" maxLength={64} />
+            </div>
+          </>
+        ) : null}
+
         {kind === 'form_submit' ? (
           <div className="flex min-w-0 flex-1 basis-44 flex-col">
             <label htmlFor={`${fieldId}-selector`} className="mb-1 text-xs text-muted-foreground">Seletor (opcional)</label>
@@ -216,6 +259,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
         <p className="w-full text-sm text-muted-foreground">
           {kind === 'event' ? <>Após a confirmação de sucesso, chame <code>LandingOptimizer.conversion({JSON.stringify(name.trim() || 'lead_received')})</code>. O nome deve ser exatamente igual.</> : null}
           {kind === 'url' ? 'Identifica visitas pelo caminho da URL, sem parâmetros de consulta ou fragmentos. Use uma página real de sucesso, em vez de uma âncora de contato.' : null}
+          {kind === 'element_visible' ? <>Use o <code>data-lo-id</code> de um elemento que só aparece após o sucesso. Se informar o ID do formulário, a confirmação deve aparecer após um envio desse formulário.</> : null}
           {kind === 'form_submit' ? 'Conta tentativas de envio, incluindo solicitações que falham depois. Deixe o seletor vazio para incluir qualquer formulário rastreado ou use o seletor exato de data-lo-id.' : null}
         </p>
         <Checkbox id={`${fieldId}-favorite`} checked={isFavorite} onChange={setIsFavorite} className="min-h-11 w-full" label="Usar como meta favorita deste site na visão geral" />
@@ -237,6 +281,10 @@ function matcherSummary(goal: ConversionGoal): string {
   if (goal.kind === 'form_submit') {
     const sel = (m as { selector?: string }).selector;
     return sel ? `seletor ${sel}` : 'qualquer formulário rastreado';
+  }
+  if (goal.kind === 'element_visible') {
+    const { path, selector, formSelector } = m as { path?: string; selector?: string; formSelector?: string };
+    return [path, selector, formSelector && `após envio de ${formSelector}`].filter(Boolean).join(' · ');
   }
   return '';
 }
