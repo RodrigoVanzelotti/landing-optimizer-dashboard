@@ -30,6 +30,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
   const [kind, setKind] = useState<GoalKind>('url');
   const [urlOp, setUrlOp] = useState<UrlOp>('exact');
   const [urlPath, setUrlPath] = useState('');
+  const [fromPath, setFromPath] = useState('');
   const [selector, setSelector] = useState('');
   const [confirmationId, setConfirmationId] = useState('');
   const [formId, setFormId] = useState('');
@@ -74,7 +75,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
     try {
       const matcher =
         kind === 'url'
-          ? { op: urlOp, path: urlPath.trim() }
+          ? { op: urlOp, path: urlPath.trim(), ...(fromPath.trim() ? { fromPath: fromPath.trim() } : {}) }
           : kind === 'element_visible'
             ? {
               path: urlPath.trim(),
@@ -97,6 +98,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
       setName('');
       setIsFavorite(false);
       setUrlPath('');
+      setFromPath('');
       setSelector('');
       setConfirmationId('');
       setFormId('');
@@ -221,6 +223,11 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
                 placeholder="/obrigado"
               />
             </div>
+            <div className="flex min-w-0 flex-1 basis-44 flex-col">
+              <label htmlFor={`${fieldId}-from`} className="mb-1 text-xs text-muted-foreground">Caminho anterior (opcional)</label>
+              <input id={`${fieldId}-from`} className={inputClass} value={fromPath} maxLength={256}
+                onChange={event => setFromPath(event.target.value)} placeholder="/" />
+            </div>
           </>
         ) : null}
 
@@ -258,7 +265,7 @@ export function GoalsManager({ siteId, onChanged }: { siteId: string; onChanged:
 
         <p className="w-full text-sm text-muted-foreground">
           {kind === 'event' ? <>Após a confirmação de sucesso, chame <code>LandingOptimizer.conversion({JSON.stringify(name.trim() || 'lead_received')})</code>. O nome deve ser exatamente igual.</> : null}
-          {kind === 'url' ? 'Identifica visitas pelo caminho da URL, sem parâmetros de consulta ou fragmentos. Use uma página real de sucesso, em vez de uma âncora de contato.' : null}
+          {kind === 'url' ? 'Use o caminho do destino. Preencha o caminho anterior para contar somente o avanço a partir daquela página ou família de páginas.' : null}
           {kind === 'element_visible' ? <>Use o <code>data-lo-id</code> de um elemento que só aparece após o sucesso. Se informar o ID do formulário, a confirmação deve aparecer após um envio desse formulário.</> : null}
           {kind === 'form_submit' ? 'Conta tentativas de envio, incluindo solicitações que falham depois. Deixe o seletor vazio para incluir qualquer formulário rastreado ou use o seletor exato de data-lo-id.' : null}
         </p>
@@ -276,7 +283,8 @@ function matcherSummary(goal: ConversionGoal): string {
   if (goal.kind === 'url') {
     const op = (m as { op?: string }).op ?? 'exact';
     const path = (m as { path?: string }).path ?? '';
-    return `${urlOpLabels[op] ?? 'Correspondência'} ${path}`.trim();
+    const from = (m as { fromPath?: string }).fromPath;
+    return `${urlOpLabels[op] ?? 'Correspondência'} ${path}${from ? ` · a partir de ${from}` : ''}`.trim();
   }
   if (goal.kind === 'form_submit') {
     const sel = (m as { selector?: string }).selector;

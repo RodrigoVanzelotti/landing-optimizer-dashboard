@@ -2,6 +2,7 @@ export interface EventCount { event: string; count: number }
 export interface SectionRow { section: string; views: number; deadClicks: number; rageClicks: number; dwellMs: number }
 
 export const eventLabels: Record<string, string> = {
+  navigation_click: 'Cliques em links e botões da jornada',
   page_view: 'Visualizações', cta_click: 'Cliques em CTA', form_start: 'Inícios de formulário', form_submit: 'Formulários enviados', section_view: 'Visualizações de seção',
   conversion: 'Conversões', dead_click: 'Cliques sem resposta', rage_click: 'Cliques repetidos',
   scroll_depth: 'Rolagem', hover: 'Atenção do cursor', exposure: 'Exposições a experimentos',

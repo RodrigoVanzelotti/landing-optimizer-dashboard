@@ -6,9 +6,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { metricDelta, conversionDrivers } from '../src/lib/analytics';
 import { OverviewAnalytics } from '../src/components/overview-analytics';
 import { BarChart } from '../src/components/bar-chart';
+import { JourneyReport } from '../src/components/journey-report';
 import { api, type AnalyticsReport } from '../src/lib/api';
 
-vi.mock('../src/lib/api', () => ({ api: { get: vi.fn() } }));
+vi.mock('../src/lib/api', () => ({ api: { get: vi.fn(), patch: vi.fn() } }));
+vi.mock('../src/lib/session', () => ({ useSession: () => ({ role: 'editor' }) }));
+vi.mock('../src/components/ui/toast', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('../src/components/trend-chart', () => ({
   TrendChart: () => React.createElement('div', { 'data-testid': 'trend' }),
   metricValue: (value: number | null, rate = false) => value === null ? 'Sem dados' : rate ? `${(value * 100).toFixed(1)}%` : String(value),
@@ -46,7 +49,9 @@ describe('dashboard transfer', () => {
       coverage: { currentComplete: true, previousComplete: false, availableFrom: '2026-09-15T00:00:00Z' },
       current: metrics, previous: metrics, series: [], events: [{ event: 'page_view', count: 1000 }], sections: [],
     };
-    vi.mocked(api.get).mockImplementation(async path => path.endsWith('/goals') ? [] : report);
+    vi.mocked(api.get).mockImplementation(async path => path.startsWith('/analytics/journey?')
+      ? { journey: { steps: [] }, steps: [], truncated: false }
+      : path.endsWith('/goals') ? [] : report);
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');
     const root = createRoot(container);
@@ -58,6 +63,29 @@ describe('dashboard transfer', () => {
       expect(container.textContent).toContain('30 sessões');
       expect(container.textContent).toContain('sem envio observado');
       expect(container.querySelectorAll('[data-testid="trend"]')).toHaveLength(2);
+    } finally { await act(async () => root.unmount()); }
+  });
+  it('saves a route family and a global event from the journey configuration', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    vi.mocked(api.get).mockResolvedValue({ journey: { steps: [] }, steps: [], truncated: false });
+    vi.mocked(api.patch).mockResolvedValue(undefined);
+    const host = document.createElement('div');
+    const root = createRoot(host);
+    try {
+      await act(async () => root.render(React.createElement(JourneyReport, { siteId: 'site', timeframe: '30d', refreshKey: 0 })));
+      const open = [...host.querySelectorAll('button')].find(button => button.textContent === 'Configurar jornada')!;
+      await act(async () => open.click());
+      const fields = [host.querySelector('textarea')!, ...host.querySelectorAll('input')];
+      await act(async () => fields.forEach((field, index) => {
+        const prototype = field instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+        Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(field, ['/produto/*\n/checkout\nevent:compra', 'purchase', 'compra'][index]);
+        field.dispatchEvent(new Event('input', { bubbles: true }));
+      }));
+      await act(async () => host.querySelector('form')!.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
+      expect(api.patch).toHaveBeenCalledWith('/analytics/journey/site', {
+        steps: ['/produto/*', '/checkout', 'event:compra'], globalEvent: { source: 'purchase', goal: 'compra' },
+      });
+      expect(host.textContent).not.toContain('Copiar credencial');
     } finally { await act(async () => root.unmount()); }
   });
 });
