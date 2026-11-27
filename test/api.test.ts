@@ -101,7 +101,8 @@ describe('session renewal', () => {
     });
     expect(await loadSession()).toBe(true);
     expect(await scopedApi.get('/sites')).toEqual([{ id: 'customer-site' }]);
-    expect(await scopedApi.getBlob('/image')).toBeInstanceOf(Blob);
+    const image = await scopedApi.getBlob('/image');
+    expect(await image.text()).toBe('image');
     await scopedApi.logout();
     expect(window.sessionStorage.getItem('lo_customer_scope')).toBeNull();
     expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/refresh')).toHaveLength(2);
