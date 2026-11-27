@@ -7,14 +7,44 @@
 import { userErrorMessage } from './errors';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '/api';
+const CUSTOMER_SCOPE_KEY = 'lo_customer_scope';
 
 let accessToken: string | null = null;
 let refreshPromise: Promise<boolean> | null = null;
 let sessionVersion = 0;
+let customerScope: string | null | undefined;
+
+function storedCustomerScope(): string | null {
+  try { return window.sessionStorage.getItem(CUSTOMER_SCOPE_KEY); }
+  catch { return null; }
+}
+
+function getCustomerScope(): string | null {
+  // Keep the current document scoped until navigation replaces its UI.
+  if (customerScope === undefined) customerScope = storedCustomerScope();
+  return customerScope;
+}
+
+export function hasCustomerAccess(): boolean {
+  return getCustomerScope() !== null;
+}
+
+export function openCustomerDashboard(scope: string): void {
+  window.sessionStorage.setItem(CUSTOMER_SCOPE_KEY, scope);
+  window.location.replace('/overview');
+}
+
+export function leaveCustomerDashboard(): void {
+  window.sessionStorage.removeItem(CUSTOMER_SCOPE_KEY);
+  window.location.replace('/tenants');
+}
 
 export function setAccessToken(token: string | null): void {
   sessionVersion++;
   accessToken = token;
+  customerScope = null;
+  try { window.sessionStorage.removeItem(CUSTOMER_SCOPE_KEY); }
+  catch { /* Storage can be disabled. */ }
 }
 
 export function getAccessToken(): string | null {
@@ -53,15 +83,20 @@ async function fetchResponse(path: string, init: RequestInit): Promise<Response>
   catch (error) { throw new ApiRequestError(0, { code: 'network_error', message: error instanceof Error ? error.message : 'Network request failed' }); }
 }
 
+function authenticatedHeaders(path: string, initial?: HeadersInit): Headers {
+  const headers = new Headers(initial);
+  if (accessToken && !headers.has('Authorization')) headers.set('Authorization', `Bearer ${accessToken}`);
+  const scope = getCustomerScope();
+  if (scope && path !== '/auth/logout') headers.set('X-Customer-Scope', scope);
+  return headers;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { retry?: boolean } = {},
 ): Promise<T> {
   const { retry = true, ...init } = options;
-  const headers = new Headers(init.headers);
-  if (accessToken && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${accessToken}`);
-  }
+  const headers = authenticatedHeaders(path, init.headers);
   if (init.body !== undefined && init.body !== null && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
@@ -123,8 +158,7 @@ async function refreshSession(): Promise<boolean> {
 
 /** Fetch a binary resource (e.g., a snapshot image) with the same auth flow. */
 async function requestBlob(path: string, retry = true): Promise<Blob> {
-  const headers = new Headers();
-  if (accessToken) headers.set('Authorization', `Bearer ${accessToken}`);
+  const headers = authenticatedHeaders(path);
   const res = await fetchResponse(path, { headers, credentials: 'include' });
 
   if (res.status === 401) {

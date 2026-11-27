@@ -4,7 +4,7 @@ import type * as React from 'react';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { api, ApiRequestError, ensureSession, setUnauthorizedHandler } from '@/lib/api';
+import { api, ApiRequestError, ensureSession, hasCustomerAccess, leaveCustomerDashboard, setUnauthorizedHandler } from '@/lib/api';
 import { canViewRoute, type SessionUser } from '@/lib/permissions';
 import { SessionContext } from '@/lib/session';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.Re
   const pathname = usePathname();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [error, setError] = useState(false);
+  const [customerUnavailable, setCustomerUnavailable] = useState(false);
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
@@ -27,9 +28,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.Re
         if (!(await ensureSession())) { if (active) { setUser(null); setError(false); router.replace('/login'); } return; }
         if (!active) return;
         const current = await api.get<SessionUser>('/auth/me');
-        if (active) { setUser(current); setError(false); }
+        if (active) { setUser(current); setError(false); setCustomerUnavailable(false); }
       } catch (err) {
-        if (active && !(err instanceof ApiRequestError && err.status === 401)) setError(true);
+        if (!active) return;
+        if (err instanceof ApiRequestError && err.status === 403 && hasCustomerAccess()) {
+          setUser(null);
+          setCustomerUnavailable(true);
+        } else if (!(err instanceof ApiRequestError && err.status === 401)) setError(true);
       } finally { pending = false; }
     }
     void load();
@@ -48,6 +53,13 @@ export function AuthGuard({ children }: { children: React.ReactNode }): React.Re
       <p>Não foi possível verificar sua sessão. Confira sua conexão e tente novamente.</p>
       <Button variant="outline" onClick={() => setAttempt((value) => value + 1)}>Tentar novamente</Button>
     </div>
+  );
+  if (customerUnavailable) return (
+    <main className="mx-auto max-w-lg p-8">
+      <h1 className="text-2xl font-semibold">Acesso ao cliente indisponível</h1>
+      <p className="mt-3 text-muted-foreground">Volte à lista de clientes para verificar a situação da empresa ou abrir um novo acesso.</p>
+      <Button variant="outline" className="mt-5 h-11" onClick={leaveCustomerDashboard}>Voltar para Clientes</Button>
+    </main>
   );
   if (!user) return error ? recovery : <p role="status" className="p-8 text-sm text-muted-foreground">Verificando seu acesso…</p>;
   if (!canViewRoute(user.role, pathname, user.platformOwner)) return (

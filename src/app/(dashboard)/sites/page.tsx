@@ -17,7 +17,7 @@ import { normalizeSiteDomain } from '@/lib/site-domain';
 import { DeleteSiteDialog } from '@/components/delete-site-dialog';
 
 export default function SitesPage(): React.ReactElement {
-  const { role } = useSession();
+  const { role, customerName } = useSession();
   const editable = canEdit(role);
   const { sites, loading, error, addSite, removeSite, selectSite, favoriteSiteId, favoriteBusy, preferenceError, setFavorite, reload } = useSites();
   const [deleting, setDeleting] = useState<Site | null>(null);
@@ -48,7 +48,7 @@ export default function SitesPage(): React.ReactElement {
 
   return (
     <div>
-      <PageHeader title="Sites" description="Marque um favorito para abrir esse site por padrão em qualquer dispositivo." />
+      <PageHeader title="Sites" description={customerName === undefined ? 'Marque um favorito para abrir esse site por padrão em qualquer dispositivo.' : undefined} />
       {preferenceError && <div role="alert" className="mb-4 text-sm"><p>{preferenceError}</p><Button variant="outline" className="mt-2 h-11" onClick={reload} disabled={favoriteBusy}>Tentar novamente</Button></div>}
 
       {editable && <Card className="mb-6">
@@ -96,11 +96,11 @@ export default function SitesPage(): React.ReactElement {
                 <p className="break-all text-sm text-muted-foreground">{site.primaryDomain}</p>
                 <p className="mt-1 text-xs text-muted-foreground">Versão {site.configVersion}: {site.status === 'active' ? 'ATIVO' : 'PAUSADO'}{favoriteSiteId === site.id ? ' · Favorito — abre por padrão' : ''}</p>
               </Link>
-              <Button type="button" variant="ghost" className="h-11 w-11 shrink-0 p-0" disabled={favoriteBusy} aria-pressed={favoriteSiteId === site.id}
+              {customerName === undefined && <Button type="button" variant="ghost" className="h-11 w-11 shrink-0 p-0" disabled={favoriteBusy} aria-pressed={favoriteSiteId === site.id}
                 aria-label={`${favoriteSiteId === site.id ? 'Remover favorito' : 'Favoritar'}: ${site.name}`}
                 onClick={() => { void setFavorite(favoriteSiteId === site.id ? null : site.id); }}>
                 <svg aria-hidden="true" viewBox="0 0 24 24" className={`h-5 w-5 ${favoriteSiteId === site.id ? 'fill-primary text-primary' : 'fill-none text-muted-foreground'}`} stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="m12 3 2.78 5.63L21 9.54l-4.5 4.39 1.06 6.2L12 17.2l-5.56 2.93 1.06-6.2L3 9.54l6.22-.91L12 3Z" /></svg>
-              </Button>
+              </Button>}
               {role === 'admin' && <Button type="button" variant="ghost" className="h-11 shrink-0 text-red-600" aria-label={`Excluir site: ${site.name}`} onClick={() => { setDeleting(site); }}>Excluir</Button>}
             </Card>
           ))}

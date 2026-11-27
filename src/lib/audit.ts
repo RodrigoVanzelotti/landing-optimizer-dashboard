@@ -25,6 +25,7 @@ export const auditActionLabels: Record<string, string> = {
   'snapshot.pruned': 'Capturas removidas pela retenção',
   'tenant.created': 'Espaço de trabalho cadastrado', 'tenant.archived': 'Espaço de trabalho arquivado', 'tenant.restored': 'Espaço de trabalho reativado',
   'auth.login': 'Entrada na conta', 'auth.logout': 'Saída da conta',
+  'platform.customer_dashboard_opened': 'Acesso administrativo a um cliente',
   'auth.password_reset_requested': 'Redefinição de senha solicitada', 'auth.password_changed': 'Senha alterada',
 };
 

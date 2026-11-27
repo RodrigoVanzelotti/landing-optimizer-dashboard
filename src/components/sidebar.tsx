@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/lib/session';
 import { canViewRoute, roleLabels } from '@/lib/permissions';
-import { api } from '@/lib/api';
+import { api, leaveCustomerDashboard } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { SiteNavigation } from '@/components/site-navigation';
 
@@ -42,6 +42,11 @@ export function Sidebar(): React.ReactElement {
         Landing<span className="text-primary">Optimizer</span>
       </div>
       <p className="mb-4 px-2 text-xs text-muted-foreground">{roleLabels[user.role]}</p>
+      {user.customerName !== undefined && <div className="mb-5 rounded-md border border-border p-3 text-sm">
+        <p className="text-xs text-muted-foreground">Acesso administrativo</p>
+        <p className="mt-1 break-words font-medium">{user.customerName}</p>
+        <Button variant="outline" className="mt-3 h-11 w-full" onClick={leaveCustomerDashboard}>Voltar para Clientes</Button>
+      </div>}
       <SiteNavigation />
       <nav aria-label="Navegação principal" className="flex flex-row gap-0.5 overflow-x-auto md:flex-col">
         {NAV_ITEMS.filter((item) => canViewRoute(user.role, item.href, user.platformOwner)).map((item) => {

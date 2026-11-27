@@ -3,7 +3,7 @@
 import { toast } from '@/components/ui/toast';
 
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '@/lib/api';
+import { api, openCustomerDashboard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { roleLabels, type UserRole } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,14 @@ export default function TenantsPage(): React.ReactElement {
     });
   }
 
+  async function accessDashboard(): Promise<void> {
+    if (!detail || detail.id !== selectedId || detail.archivedAt) return;
+    await act(async () => {
+      const { scope } = await api.post<{ scope: string }>(`/platform/tenants/${detail.id}/dashboard-access`);
+      openCustomerDashboard(scope);
+    });
+  }
+
   async function changeStatus(archive: boolean): Promise<void> {
     if (!detail) return;
     await act(async () => {
@@ -133,7 +141,10 @@ export default function TenantsPage(): React.ReactElement {
             </li>)}</ul>
           </section>
           {!detail ? <p role="status">{error ? 'Não foi possível carregar o cliente. Selecione outro ou recarregue a página.' : 'Carregando dados do cliente…'}</p> : <section className="min-w-0" aria-labelledby="tenant-title">
-            <div className="border-b border-border pb-5"><h2 id="tenant-title" className="break-words text-2xl font-semibold tracking-tight">{detail.name}</h2><p className="mt-2 text-sm text-muted-foreground">{detail.archivedAt ? 'Arquivado — acesso bloqueado' : 'Cliente ativo'}</p></div>
+            <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
+              <div className="min-w-0"><h2 id="tenant-title" className="break-words text-2xl font-semibold tracking-tight">{detail.name}</h2><p className="mt-2 text-sm text-muted-foreground">{detail.archivedAt ? 'Arquivado — acesso bloqueado' : 'Cliente ativo'}</p></div>
+              {!detail.archivedAt && detail.id !== user.tenantId && <Button className="h-11" disabled={busy || detail.id !== selectedId} onClick={accessDashboard}>Acessar dashboard</Button>}
+            </div>
             <dl className="my-5 grid gap-4 text-sm sm:grid-cols-2">
               <div><dt className="text-muted-foreground">Identificador</dt><dd className="mt-1 break-all">{detail.id}</dd></div>
               <div><dt className="text-muted-foreground">Identificador na URL</dt><dd className="mt-1 break-all">{detail.slug}</dd></div>

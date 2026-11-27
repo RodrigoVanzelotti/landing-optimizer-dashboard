@@ -16,7 +16,7 @@ const inputClass = 'h-11 w-full rounded-md border border-border bg-background px
 
 export function TeamSettings(): React.ReactElement {
   const user = useSession();
-  const admin = user.role === 'admin';
+  const admin = user.role === 'admin' && user.customerName === undefined;
   const [team, setTeam] = useState<Team | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -127,7 +127,7 @@ export function TeamSettings(): React.ReactElement {
               <div className="mt-3 flex flex-col gap-3 sm:flex-row"><input id="generated-invite" readOnly value={link} onFocus={(event) => event.target.select()} className={`${inputClass} min-w-0 sm:flex-1`} /><Button type="button" variant="outline" className="h-11" onClick={copy}>Copiar link</Button></div>
             </div>}
           </section>
-        ) : <p className="mb-8 text-sm text-muted-foreground">Você pode consultar esta área. Apenas administradores podem convidar pessoas e alterar perfis.</p>}
+        ) : <p className="mb-8 text-sm text-muted-foreground">Você pode consultar esta área. Os administradores da equipe gerenciam convites e perfis.</p>}
         <section aria-labelledby="members-title">
           <h2 id="members-title" className="text-xl font-semibold">Pessoas no espaço de trabalho</h2>
           <ul className="mt-4 divide-y divide-border border-y border-border">

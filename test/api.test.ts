@@ -80,6 +80,33 @@ describe('api request bodies', () => {
 });
 
 describe('session renewal', () => {
+  it('keeps the tab customer scope across renewal and image requests, and clears it on logout', async () => {
+    vi.resetModules();
+    const { api: scopedApi, ensureSession: loadSession } = await import('../src/lib/api');
+    window.sessionStorage.setItem('lo_customer_scope', 'customer-grant');
+    let refreshes = 0;
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
+      const headers = new Headers(init?.headers);
+      if (url === '/api/auth/refresh') {
+        expect(headers.has('X-Customer-Scope')).toBe(false);
+        return Response.json({ accessToken: ++refreshes === 1 ? 'expired' : 'renewed' });
+      }
+      if (url === '/api/auth/logout') {
+        expect(headers.has('X-Customer-Scope')).toBe(false);
+        return new Response(null, { status: 204 });
+      }
+      expect(headers.get('X-Customer-Scope')).toBe('customer-grant');
+      if (headers.get('Authorization') === 'Bearer expired') return new Response(null, { status: 401 });
+      return url === '/api/image' ? new Response('image') : Response.json([{ id: 'customer-site' }]);
+    });
+    expect(await loadSession()).toBe(true);
+    expect(await scopedApi.get('/sites')).toEqual([{ id: 'customer-site' }]);
+    expect(await scopedApi.getBlob('/image')).toBeInstanceOf(Blob);
+    await scopedApi.logout();
+    expect(window.sessionStorage.getItem('lo_customer_scope')).toBeNull();
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/refresh')).toHaveLength(2);
+  });
+
   it.each([null, 'new-login'])('does not restore a stale refresh after the session changes to %s', async (token) => {
     let resolve!: (response: Response) => void;
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>(done => { resolve = done; }));
